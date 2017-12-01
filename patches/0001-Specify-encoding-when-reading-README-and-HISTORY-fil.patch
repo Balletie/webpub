@@ -1,0 +1,29 @@
+From b04438da2ec6f9c3b9d91fac40d6a5b3750ed047 Mon Sep 17 00:00:00 2001
+From: Balletie <skip_meesie@hotmail.com>
+Date: Thu, 30 Nov 2017 14:09:44 +0100
+Subject: [PATCH] Specify encoding when reading README and HISTORY files
+
+---
+ setup.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/setup.py b/setup.py
+index 87d589d..4f22c3e 100644
+--- a/setup.py
++++ b/setup.py
+@@ -10,10 +10,10 @@ if version_info < (3, 5):
+     raise RuntimeError("Requires Python 3.5 or later.")
+ 
+ 
+-with open('README.rst') as readme_file:
++with open('README.rst', encoding='utf-8') as readme_file:
+     readme = readme_file.read()
+ 
+-with open('HISTORY.rst') as history_file:
++with open('HISTORY.rst', encoding='utf-8') as history_file:
+     history = history_file.read()
+ 
+ 
+-- 
+2.15.0
+
