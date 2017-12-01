@@ -2,6 +2,7 @@ import os
 import os.path
 import shutil
 import functools as ft
+import dependency_injection
 from urllib.parse import urlparse, urlunparse
 import mimeparse
 
@@ -41,10 +42,30 @@ def route_url(routes, root_dir, element):
         element.attrib[attrib] = new_url
     return element
 
-def set_result(context, root):
-    context.result = root
+def write_tree_out(input, filepath, routes):
+    routed_path = os.path.join('_result', routes[filepath])
+    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
-def transform_document(context, doc):
+    with open(routed_path, 'wb') as dst:
+        input.write(
+            dst,
+            xml_declaration=True,
+            encoding=input.docinfo.encoding,
+            pretty_print=True
+        )
+
+def copy_out(filepath, root_dir, routes):
+    src_zip_path = os.path.join(root_dir, filepath)
+    routed_path = os.path.join('_result', routes[filepath])
+    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
+
+    with epub_zip.open(src_zip_path, 'r') as src, open(routed_path, 'wb') as dst:
+        shutil.copyfileobj(src, dst, 8192)
+
+replace_urls = lambda filepath: filepath
+write_out = copy_out
+
+def transform_document(routes, root_dir, filepath):
     transformation = Transformation(
         # TODO:
         # put transformed documents in correct template with SSIs.
@@ -53,19 +74,16 @@ def transform_document(context, doc):
                 MatchesAttributes({'src': None}),),
             route_url,
         ),
-        set_result,
-        result_object='context', context=context
+        context=locals()
     )
 
-    print("Transforming {}".format(doc))
-    with epub_zip.open(os.path.join(context['root_dir'], doc)) as doc_xml:
+    print("Transforming {}".format(filepath))
+    with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
         doc_tree = etree.parse(doc_xml)
 
-    new_context = transformation(doc_tree.getroot())
-    context.update(new_context.__dict__)
-    context[doc] = new_context.result.getroottree()
+    result = transformation(doc_tree.getroot())
 
-    return context
+    return result.getroottree()
 
 def ensure(result, error_message):
     if not result:
@@ -73,37 +91,59 @@ def ensure(result, error_message):
 
     return result[0]
 
-# Dict from mimetype media ranges to destination directories.
-mimetype_dest = {
-    'application/xhtml+xml': './',
-    'text/css': './css/',
-    'image/*': './img/',
-    '*/*': './etc/'
+# Dict from mimetype media ranges to handlers and destination directory.
+default_handlers = {
+    'application/xhtml+xml': ('./', (transform_document, write_tree_out)),
+    'text/css': ('./css/', (replace_urls, write_out)),
+    'image/*': ('./img/', (copy_out,)),
+    '*/*': ('./etc/', (copy_out,))
 }
 
-def route_manifest_item(routes, manifest_item):
+def apply_handlers(handlers, context):
+    print("Start handling {}.".format(context['filepath']))
+    for handler in handlers:
+        kwargs = dependency_injection.resolve_dependencies(
+            handler, context
+        ).as_kwargs
+        print(" - {}".format(handler.__name__))
+        context['input'] = handler(**kwargs)
+
+def get_handlers(manifest_item, context, mimetype_handlers=default_handlers):
     manifest_item_path = manifest_item.attrib["href"]
     manifest_mime = manifest_item.attrib["media-type"]
-    dest_dir = mimetype_dest[mimeparse.best_match(mimetype_dest.keys(), manifest_mime)]
-    routes[manifest_item_path] = os.path.join(dest_dir,
-                                              os.path.basename(manifest_item_path))
+    mime_match = mimeparse.best_match(mimetype_handlers.keys(), manifest_mime)
 
-def make_routes(spine_refs, manifest):
-    doc_routes = {}
+    dst, handlers = mimetype_handlers[mime_match]
+    context['routes'][manifest_item_path] = os.path.join(
+        dst, os.path.basename(manifest_item_path)
+    )
+
+    return manifest_item_path, handlers
+
+def handle_all(spine_refs, manifest, context):
+    handlers_with_input = {}
+    context.setdefault('routes', {})
     for ref in spine_refs:
         manifest_item = manifest.xpath('./item[@id=$ref]', ref=ref, smart_prefix=True)
         if not manifest_item:
-            print("Warning: couldn't find item in manifest for reference {} in spine section.".format(ref))
+            print(
+                "Warning: couldn't find item in manifest"
+                "for reference {} in spine section.".format(ref)
+            )
             continue
         manifest_item = manifest_item[0]
-        route_manifest_item(doc_routes, manifest_item)
+        src, handlers = get_handlers(manifest_item, context)
+        handlers_with_input.setdefault(handlers, []).append(src)
         manifest.remove(manifest_item)
 
-    other_routes = {}
     for manifest_item in manifest.xpath('./item', smart_prefix=True):
-        route_manifest_item(other_routes, manifest_item)
+        src, handlers = get_handlers(manifest_item, context)
+        handlers_with_input.setdefault(handlers, []).append(src)
 
-    return doc_routes, other_routes
+    for handlers, srcs in handlers_with_input.items():
+        for src in srcs:
+            context['filepath'] = src
+            apply_handlers(handlers, context)
 
 def get_toc(toc_ref, manifest):
     toc_ref = ensure(toc_ref, "Spine section in EPUB package does not have a 'toc' attribute")
@@ -137,43 +177,8 @@ def make_webbook(epub_zip):
 
     toc_path = get_toc(toc_ref, manifest)
 
-    document_routes, other_routes = make_routes(spine_refs, manifest)
-
-    print(document_routes)
-    print(other_routes)
-    routes = {}
-    routes.update(document_routes)
-    routes.update(other_routes)
-
-    documents = document_routes.keys()
-    context = { 'root_dir': root_dir, 'routes': routes }
-    transformed_context = ft.reduce(
-        transform_document,
-        documents,
-        context
-    )
-
-    for doc in documents:
-        filename = os.path.join('_result', transformed_context['routes'][doc])
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-
-        with open(filename, 'wb') as file_out:
-            transformed_tree = transformed_context[doc]
-            transformed_tree.write(
-                file_out,
-                xml_declaration=True,
-                encoding=transformed_tree.docinfo.encoding,
-                pretty_print=True
-            )
-
-    for zip_path, routed_path in other_routes.items():
-        src_zip_path = os.path.join(root_dir, zip_path)
-        dst_path = os.path.join('_result', routed_path)
-        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-
-        with epub_zip.open(src_zip_path, 'r') as src, open(dst_path, 'wb') as dst:
-            shutil.copyfileobj(src, dst, 8192)
+    context = { 'root_dir': root_dir }
+    handle_all(spine_refs, manifest, context)
 
 with zf.ZipFile('Five_Faculties_171022.epub') as epub_zip:
     make_webbook(epub_zip)
-
