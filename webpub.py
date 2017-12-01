@@ -3,6 +3,7 @@ import os.path
 import shutil
 import functools as ft
 import dependency_injection
+import cssutils
 from urllib.parse import urlparse, urlunparse
 import mimeparse
 
@@ -26,20 +27,26 @@ def get_route(routes, root_dir, path):
     path = os.path.normpath(os.path.join(root_dir, path))
     return routes.get(path)
 
-def route_url(routes, root_dir, element):
+def routed_url(filepath, routes, root_dir, old_url_str):
+    url = urlparse(old_url_str)
+    if is_relative(url):
+        routed = get_route(routes, root_dir, url.path)
+        routed_cur_path = routes[filepath]
+        rel_routed = os.path.relpath(routed, os.path.dirname(routed_cur_path))
+        url_list = list(url)
+        url_list[2] = rel_routed
+        new_url_str = urlunparse(url_list)
+        print("Routed {} to {}.".format(old_url_str, new_url_str))
+        return new_url_str
+    return old_url_str
+
+def route_url(routes, filepath, root_dir, element):
     old_url = None
     for attrib in ['href', 'src']:
         old_url = element.attrib.get(attrib)
         if old_url:
             break
-    url = urlparse(old_url)
-    if is_relative(url):
-        routed = get_route(routes, root_dir, url.path)
-        url_list = list(url)
-        url_list[2] = routed
-        new_url = urlunparse(url_list)
-        print("Routed {} to {}.".format(old_url, new_url))
-        element.attrib[attrib] = new_url
+    element.attrib[attrib] = routed_url(filepath, routes, root_dir, old_url)
     return element
 
 def write_tree_out(input, filepath, routes):
@@ -62,8 +69,18 @@ def copy_out(filepath, root_dir, routes):
     with epub_zip.open(src_zip_path, 'r') as src, open(routed_path, 'wb') as dst:
         shutil.copyfileobj(src, dst, 8192)
 
-replace_urls = lambda filepath: filepath
-write_out = copy_out
+def replace_urls(routes, root_dir, filepath):
+    style_string = epub_zip.read(os.path.join(root_dir, filepath))
+    stylesheet = cssutils.parseString(style_string)
+    cssutils.replaceUrls(stylesheet, ft.partial(routed_url, filepath, routes, root_dir))
+    return stylesheet.cssText
+
+def write_out(input, filepath, routes):
+    routed_path = os.path.join('_result', routes[filepath])
+    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
+
+    with open(routed_path, 'wb') as dst:
+        dst.write(input)
 
 def transform_document(routes, root_dir, filepath):
     transformation = Transformation(
