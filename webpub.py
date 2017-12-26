@@ -9,7 +9,7 @@ import mimeparse
 
 from operator import itemgetter
 
-from lxml import etree
+from lxml import etree, html
 
 from inxs import lib, lxml_utils, Rule, Any, MatchesAttributes, Transformation
 
@@ -49,6 +49,14 @@ def route_url(routes, filepath, root_dir, element):
     element.attrib[attrib] = routed_url(filepath, routes, root_dir, old_url)
     return element
 
+def insert_into_template(context, root, template):
+    head = root.find('head')
+    body = root.find('body')
+    template_head = template.find('head')
+    template_content = template.get_element_by_id('content')
+    template_head.extend(head.getchildren())
+    template_content.extend(body.getchildren())
+
 def write_tree_out(input, filepath, routes):
     routed_path = os.path.join('_result', routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
@@ -58,7 +66,7 @@ def write_tree_out(input, filepath, routes):
             dst,
             xml_declaration=True,
             encoding=input.docinfo.encoding,
-            pretty_print=True
+            pretty_print=True,
         )
 
 def copy_out(filepath, root_dir, routes):
@@ -82,23 +90,24 @@ def write_out(input, filepath, routes):
     with open(routed_path, 'wb') as dst:
         dst.write(input)
 
-def transform_document(routes, root_dir, filepath):
+def transform_document(routes, root_dir, filepath, template):
     transformation = Transformation(
-        # TODO:
-        # put transformed documents in correct template with SSIs.
         Rule(
             Any(MatchesAttributes({'href': None}),
                 MatchesAttributes({'src': None}),),
             route_url,
         ),
-        context=locals()
+        insert_into_template,
+        context=locals(),
+        result_object='context.template'
     )
 
     print("Transforming {}".format(filepath))
     with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
-        doc_tree = etree.parse(doc_xml)
+        doc_tree = html.parse(doc_xml)
 
-    result = transformation(doc_tree.getroot())
+    root = doc_tree.getroot()
+    result = transformation(root)
 
     return result.getroottree()
 
@@ -139,6 +148,10 @@ def get_handlers(manifest_item, context, mimetype_handlers=default_handlers):
 
 def handle_all(spine_refs, manifest, context):
     handlers_with_input = {}
+    context.setdefault(
+        'template',
+        html.parse("./dhammatalks_site_template.html").getroot(),
+    )
     context.setdefault('routes', {})
     for ref in spine_refs:
         manifest_item = manifest.xpath('./item[@id=$ref]', ref=ref, smart_prefix=True)
