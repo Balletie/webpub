@@ -121,29 +121,82 @@ def transform_document(routes, root_dir, filepath, title, template):
 
     return result.getroottree()
 
-def set_titles(src_to_title, root):
-    navpoints = root.xpath('./navMap/navPoint', smart_prefix=True)
-    for np in navpoints:
-        src = np.xpath('./content/@src', smart_prefix=True)[0]
-        title = np.xpath('./navLabel/text', smart_prefix=True)[0].text
-        src_to_title[src] = title
+def set_titles(element, src_to_title):
+    src = element.xpath('./content/@src', smart_prefix=True)[0]
+    title = element.xpath('./navLabel/text', smart_prefix=True)[0].text
+    src_to_title[src] = title
 
-def transform_toc(routes, src_to_title, root_dir, filepath):
+def make_toc_skeleton(template, elmaker):
+    content_div = template.get_element_by_id('content')
+    content_child = elmaker.div(
+        elmaker.h1('Contents'),
+        id='contents',
+    )
+    content_div.append(content_child)
+
+def make_toc_tree(root, elmaker):
+    ul = elmaker.ul
+    li = elmaker.li
+    a = elmaker.a
+    children = list()
+    for np in root.xpath('./navPoint', smart_prefix=True):
+        title = np.xpath('./navLabel/text', smart_prefix=True)[0].text
+        href = np.xpath('./content/@src', smart_prefix=True)[0]
+        child = li(
+            a(title, href=href),
+            *make_toc_tree(np, elmaker)
+        )
+        children.append(child)
+    if children:
+        toc = ul(*children)
+        return [toc]
+    return []
+
+def list_contents(root, template, elmaker):
+    contents_div = template.get_element_by_id('contents')
+    root = root.xpath('./navMap', smart_prefix=True)[0]
+    contents_div.extend(make_toc_tree(root, elmaker))
+
+def indent(template, level=0):
+    i = "\n" + level*"  "
+    if len(template):
+        if not template.text or not template.text.strip():
+            template.text = i + "  "
+        if not template.tail or not template.tail.strip():
+            template.tail = i
+        for template in template:
+            indent(template, level+1)
+        if not template.tail or not template.tail.strip():
+            template.tail = i
+    else:
+        if level and (not template.tail or not template.tail.strip()):
+            template.tail = i
+
+def transform_toc(routes, src_to_title, root_dir, filepath, template):
     transformation = Transformation(
-        set_titles,
+        lib.init_elementmaker(
+            name='elmaker',
+        ),
+        make_toc_skeleton,
+        Rule('navPoint', set_titles),
         Rule(
             Any(MatchesAttributes({'href': None}),
                 MatchesAttributes({'src': None}),),
             route_url,
         ),
+        list_contents,
+        indent,
+        result_object='context.template',
+        context=locals()
     )
 
     print("Transforming {}".format(filepath))
     with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
-        doc_tree = etree.parse(doc_xml)
+        parser = etree.XMLParser(remove_blank_text=True)
+        doc_tree = etree.parse(doc_xml, parser)
 
     root = doc_tree.getroot()
-    result = transformation(root, **locals())
+    result = transformation(root, src_to_title=src_to_title)
 
     return result.getroottree()
 
