@@ -216,7 +216,7 @@ def ensure(result, error_message):
 # Dict from mimetype media ranges to handlers and destination directory.
 default_handlers = {
     'application/xhtml+xml': ('./', (transform_document, write_tree_out)),
-    'application/x-dtbncx+xml': ('./', (transform_toc, write_tree_out)),
+    'application/x-dtbncx+xml': (lambda _: './Contents.html', (transform_toc, write_tree_out)),
     'text/css': ('./css/', (replace_urls, write_out)),
     'image/*': ('./img/', (copy_out,)),
     '*/*': ('./etc/', (copy_out,))
@@ -237,9 +237,12 @@ def get_handlers(manifest_item, context, mimetype_handlers=default_handlers):
     mime_match = mimeparse.best_match(mimetype_handlers.keys(), manifest_mime)
 
     dst, handlers = mimetype_handlers[mime_match]
-    context['routes'][manifest_item_path] = os.path.join(
-        dst, os.path.basename(manifest_item_path)
-    )
+    if not callable(dst):
+        old_dst = dst
+        dst = lambda path: os.path.join(old_dst, os.path.basename(path))
+
+    dst = dst(manifest_item_path)
+    context['routes'][manifest_item_path] = dst
 
     return manifest_item_path, handlers
 
@@ -251,13 +254,14 @@ def handle_all(spine_refs, toc_ref, manifest, context):
         manifest.xpath('./item[@id=$ref]', ref=toc_ref, smart_prefix=True),
         "Couldn't find item in manifest for toc reference {} in spine section.".format(toc_ref),
     )
-    context.setdefault('src_to_title', {toc_item.attrib['href']: 'Contents'})
+    toc_src = toc_item.attrib['href']
+    context.setdefault('src_to_title', {toc_src: 'Contents'})
+    context.setdefault('routes', {})
 
     context.setdefault(
         'template',
         html.parse("./dhammatalks_site_template.html").getroot(),
     )
-    context.setdefault('routes', {})
     for ref in [toc_ref] + spine_refs:
         manifest_item = manifest.xpath('./item[@id=$ref]', ref=ref, smart_prefix=True)
         if not manifest_item:
