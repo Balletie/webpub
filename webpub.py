@@ -73,7 +73,7 @@ def write_tree_out(input, filepath, routes):
     with open(routed_path, 'wb') as dst:
         input.write(
             dst,
-            xml_declaration=True,
+            doctype='<!DOCTYPE html>',
             encoding=input.docinfo.encoding,
             pretty_print=True,
         )
@@ -126,7 +126,14 @@ def set_titles(element, src_to_title):
     title = element.xpath('./navLabel/text', smart_prefix=True)[0].text
     src_to_title[src] = title
 
-def make_toc_skeleton(template, elmaker):
+def make_toc_skeleton(template, routes, elmaker):
+    head = template.find('head')
+    # Add styles to template
+    for routed_item in routes.values():
+        if routed_item.endswith('.css'):
+            head.append(elmaker.link(href=routed_item, rel="stylesheet", type="text/css"))
+
+    # Add ToC list to content div
     content_div = template.get_element_by_id('content')
     content_child = elmaker.div(
         elmaker.h1('Contents'),
