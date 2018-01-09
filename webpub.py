@@ -16,11 +16,6 @@ from inxs import lib, lxml_utils, Rule, Any, MatchesAttributes, Transformation
 
 import zipfile as zf
 
-def generate_skeleton(context, e):
-    context.html = e.html(
-        e.head(e.title('Testing XML Example')),
-        e.body(e.h1('Persons'), e.ul()))
-
 def is_relative(url):
     return not url.netloc and not url.scheme
 
@@ -71,12 +66,11 @@ def write_tree_out(input, filepath, routes):
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
-        input.write(
-            dst,
+        dst.write(html.tostring(input,
             doctype='<!DOCTYPE html>',
             encoding=input.docinfo.encoding,
             pretty_print=True,
-        )
+        ))
 
 def copy_out(filepath, root_dir, routes):
     src_zip_path = os.path.join(root_dir, filepath)
