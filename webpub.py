@@ -1,8 +1,9 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import os
 import os.path
 import shutil
 import functools as ft
+import itertools as it
 import dependency_injection
 import cssutils
 from urllib.parse import urlparse, urlunparse
@@ -15,6 +16,40 @@ from lxml import etree, html
 from inxs import lib, lxml_utils, Rule, Any, MatchesAttributes, Transformation
 
 import zipfile as zf
+
+import argparse
+
+def int_or_toc(val):
+    try:
+        i = int(val)
+    except:
+        if val == 'toc':
+            i = 0
+        else:
+            raise argparse.ArgumentTypeError("Invalid argument, must be 'toc' or a number greater than 0")
+    else:
+        if i < 1:
+            raise argparse.ArgumentTypeError("Numbers must be greater than 0")
+    return i
+
+class make_order(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        filled_values = it.chain(values[:], (i for i in it.count(1) if i not in values))
+        setattr(namespace, self.dest + '_orig', values)
+        setattr(namespace, self.dest, filled_values)
+
+parser = argparse.ArgumentParser(description="Process ePUB documents for web publishing")
+parser.add_argument('-d', dest='output_dir', metavar='DIR', default='_result', help="Output directory (defaults to ./_result/)")
+parser.add_argument('--spine-order', metavar='N', default=it.count(), nargs='+',
+                    type=int_or_toc, action=make_order,
+                    help="Reorder the chapter order for next/previous buttons. Input is a sequence of one or more positive non-zero numbers, or the special value 'toc'. (defaults to '1 toc 2 3 ...')")
+parser.add_argument('--toc-order', metavar='N', default=None, nargs='+',
+                    type=int_or_toc, action=make_order,
+                    help="Reorder the order of the entries in the table of contents. Input is a sequence of one or more positive non-zero numbers, or the special value 'toc'. (defaults to --spine-order or '1 2 toc 3 ...')")
+parser.add_argument('epub_filename', metavar='INFILE', help="The ePUB input file.")
+
+args = parser.parse_args()
+args.toc_order = args.toc_order or args.spine_order
 
 def is_relative(url):
     return not url.netloc and not url.scheme
@@ -62,7 +97,7 @@ def append_chapter_title(root, title):
     title_elem.text = title + ' | ' + title_elem.text
 
 def write_tree_out(input, filepath, routes):
-    routed_path = os.path.join('_result', routes[filepath])
+    routed_path = os.path.join(args.output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
@@ -74,7 +109,7 @@ def write_tree_out(input, filepath, routes):
 
 def copy_out(filepath, root_dir, routes):
     src_zip_path = os.path.join(root_dir, filepath)
-    routed_path = os.path.join('_result', routes[filepath])
+    routed_path = os.path.join(args.output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with epub_zip.open(src_zip_path, 'r') as src, open(routed_path, 'wb') as dst:
@@ -87,7 +122,7 @@ def replace_urls(routes, root_dir, filepath):
     return stylesheet.cssText
 
 def write_out(input, filepath, routes):
-    routed_path = os.path.join('_result', routes[filepath])
+    routed_path = os.path.join(args.output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
@@ -135,17 +170,40 @@ def make_toc_skeleton(template, routes, elmaker):
     )
     content_div.append(content_child)
 
-def make_toc_tree(root, elmaker):
+TocEntry = namedtuple('TocEntry', ['title', 'href', 'children'])
+
+def make_toc_tree(root):
+    entries = []
+    for np in root.xpath('./navPoint', smart_prefix=True):
+        title = np.xpath('./navLabel/text', smart_prefix=True)[0].text
+        href = np.xpath('./content/@src', smart_prefix=True)[0]
+        entries.append(TocEntry(title, href, make_toc_tree(np)))
+    return entries
+
+def make_toc(root, filepath, routes, elmaker):
+    root = root.xpath('./navMap', smart_prefix=True)[0]
+    toc_entries = [ TocEntry('Table of Contents', routes[filepath], []) ] + make_toc_tree(root)
+    toc_order = list(it.islice(args.toc_order, len(toc_entries)))
+    for i in toc_order:
+        if i >= len(toc_entries):
+            print(
+                "The value '{}' is out of bounds,"\
+                " only values from 1 up to {} can be used.".format(i, len(toc_entries) - 1)
+            )
+            import sys
+            sys.exit(1)
+    toc_entries = [ toc_entries[i] for i in toc_order ]
+    return toc_entries
+
+def toc_tree_to_html(previous_result, elmaker):
     ul = elmaker.ul
     li = elmaker.li
     a = elmaker.a
     children = list()
-    for np in root.xpath('./navPoint', smart_prefix=True):
-        title = np.xpath('./navLabel/text', smart_prefix=True)[0].text
-        href = np.xpath('./content/@src', smart_prefix=True)[0]
+    for entry in previous_result:
         child = li(
-            a(title, href=href),
-            *make_toc_tree(np, elmaker)
+            a(entry.title, href=entry.href),
+            *toc_tree_to_html(entry.children, elmaker)
         )
         children.append(child)
     if children:
@@ -153,10 +211,9 @@ def make_toc_tree(root, elmaker):
         return [toc]
     return []
 
-def list_contents(root, template, elmaker):
+def list_contents(previous_result, template, elmaker):
     contents_div = template.get_element_by_id('contents')
-    root = root.xpath('./navMap', smart_prefix=True)[0]
-    contents_div.extend(make_toc_tree(root, elmaker))
+    contents_div.extend(toc_tree_to_html(previous_result, elmaker))
 
 def indent(template, level=0):
     i = "\n" + level*"  "
@@ -173,7 +230,7 @@ def indent(template, level=0):
         if level and (not template.tail or not template.tail.strip()):
             template.tail = i
 
-def transform_toc(routes, src_to_title, root_dir, filepath, template):
+def transform_toc(routes, src_to_title, root_dir, filepath, title, template):
     transformation = Transformation(
         lib.init_elementmaker(
             name='elmaker',
@@ -185,6 +242,7 @@ def transform_toc(routes, src_to_title, root_dir, filepath, template):
                 MatchesAttributes({'src': None}),),
             route_url,
         ),
+        make_toc,
         list_contents,
         indent,
         result_object='context.template',
@@ -301,5 +359,5 @@ def make_webbook(epub_zip):
     context = { 'root_dir': root_dir }
     handle_all(spine_refs, toc_ref, manifest, context)
 
-with zf.ZipFile('Five_Faculties_171022.epub') as epub_zip:
+with zf.ZipFile(args.epub_filename) as epub_zip:
     make_webbook(epub_zip)
