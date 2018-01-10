@@ -36,6 +36,18 @@ class make_order(argparse.Action):
         setattr(namespace, self.dest + '_orig', values)
         setattr(namespace, self.dest, filled_values)
 
+def reorder(entries, order):
+    entries_order = list(it.islice(order, len(entries)))
+    print(entries)
+    print(entries_order)
+    for i in entries_order:
+        if i >= len(entries):
+            raise ValueError(
+                "The value '{}' is out of bounds,"\
+                " only values from 1 up to {} can be used.".format(i, len(entries) - 1)
+            )
+    return [ entries[i] for i in entries_order ]
+
 parser = argparse.ArgumentParser(description="Process ePUB documents for web publishing")
 parser.add_argument('-d', dest='output_dir', metavar='DIR', default='_result', help="Output directory (defaults to ./_result/)")
 parser.add_argument('--spine-order', metavar='N', default=it.count(), nargs='+',
@@ -47,7 +59,8 @@ parser.add_argument('--toc-order', metavar='N', default=None, nargs='+',
 parser.add_argument('epub_filename', metavar='INFILE', help="The ePUB input file.")
 
 args = parser.parse_args()
-args.toc_order = args.toc_order or args.spine_order
+if not args.toc_order:
+    args.spine_order, args.toc_order = it.tee(args.spine_order)
 
 def is_relative(url):
     return not url.netloc and not url.scheme
@@ -99,6 +112,29 @@ def insert_meta(template, section_title, meta_title, meta_author, elmaker):
     author_suffix = (' by ' + meta_author) if meta_author else ''
     head.insert(1, elmaker.meta(name='description', content=meta_title + author_suffix))
 
+def insert_prev_next(template, routes, filepath, toc_src, spine, elmaker):
+    spine_index = spine.index(filepath)
+    prev_src = spine[spine_index - 1] if spine_index > 0 else None
+    next_src = spine[spine_index + 1] if spine_index < len(spine) - 1 else None
+
+    container = elmaker.div(id="nextbutton")
+    if prev_src:
+        container.append(elmaker.a(
+            elmaker.img(src="/images/actions/go-next-button2.png", title="Previous page"),
+            {'href': routes[prev_src], 'class': "next"}
+        ))
+    container.append(elmaker.a(
+        elmaker.img(src="/images/actions/ToC_button.png", title="Table of Contents"),
+        {'href': routes[toc_src], 'class': "next"}
+    ))
+    if next_src:
+        container.append(elmaker.a(
+            elmaker.img(src="/images/actions/go-next-button2.png", title="Next page"),
+            {'href': routes[next_src], 'class': "next"}
+        ))
+    template_content = template.get_element_by_id('content')
+    template_content.append(container)
+
 def write_tree_out(input, filepath, routes):
     routed_path = os.path.join(args.output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
@@ -131,7 +167,7 @@ def write_out(input, filepath, routes):
     with open(routed_path, 'wb') as dst:
         dst.write(input)
 
-def transform_document(routes, root_dir, filepath, section_title, meta_title, meta_author, template):
+def transform_document(routes, spine, root_dir, filepath, toc_src, section_title, meta_title, meta_author, template):
     transformation = Transformation(
         lib.init_elementmaker(
             name='elmaker',
@@ -143,6 +179,7 @@ def transform_document(routes, root_dir, filepath, section_title, meta_title, me
         ),
         insert_into_template,
         insert_meta,
+        insert_prev_next,
         context=locals(),
         result_object='context.template'
     )
@@ -189,17 +226,7 @@ def make_toc_tree(root):
 def make_toc(root, filepath, routes, elmaker):
     root = root.xpath('./navMap', smart_prefix=True)[0]
     toc_entries = [ TocEntry('Table of Contents', routes[filepath], []) ] + make_toc_tree(root)
-    toc_order = list(it.islice(args.toc_order, len(toc_entries)))
-    for i in toc_order:
-        if i >= len(toc_entries):
-            print(
-                "The value '{}' is out of bounds,"\
-                " only values from 1 up to {} can be used.".format(i, len(toc_entries) - 1)
-            )
-            import sys
-            sys.exit(1)
-    toc_entries = [ toc_entries[i] for i in toc_order ]
-    return toc_entries
+    return reorder(toc_entries, args.toc_order)
 
 def toc_tree_to_html(previous_result, elmaker):
     ul = elmaker.ul
@@ -236,13 +263,14 @@ def indent(template, level=0):
         if level and (not template.tail or not template.tail.strip()):
             template.tail = i
 
-def transform_toc(routes, src_to_title, root_dir, filepath, section_title, meta_title, meta_author, template):
+def transform_toc(routes, spine, toc_src, src_to_title, root_dir, filepath, section_title, meta_title, meta_author, template):
     transformation = Transformation(
         lib.init_elementmaker(
             name='elmaker',
         ),
         make_toc_skeleton,
         insert_meta,
+        insert_prev_next,
         Rule('navPoint', set_titles),
         Rule(
             Any(MatchesAttributes({'href': None}),
@@ -321,6 +349,8 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
     toc_src = toc_item.attrib['href']
     context.setdefault('src_to_title', {toc_src: 'Contents'})
     context.setdefault('routes', {})
+    context.setdefault('spine', [])
+    context.setdefault('toc_src', toc_src)
     meta_title = metadata.xpath('./dc:title/text()', namespaces=opf_namespaces)
     meta_author = metadata.xpath('./dc:creator[@opf:role="aut"]/text()', namespaces=opf_namespaces)
     context.setdefault('meta_title', meta_title[0] if meta_title else '')
@@ -340,8 +370,11 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
             continue
         manifest_item = manifest_item[0]
         src, handlers = get_handlers(manifest_item, context)
+        context['spine'].append(src)
         handlers_with_input.setdefault(handlers, []).append(src)
         manifest.remove(manifest_item)
+
+    context['spine'] = reorder(context['spine'], args.spine_order)
 
     for manifest_item in manifest.xpath('./item', smart_prefix=True):
         src, handlers = get_handlers(manifest_item, context)
