@@ -9,8 +9,6 @@ import cssutils
 from urllib.parse import urlparse, urlunparse
 import mimeparse
 
-from operator import itemgetter
-
 from lxml import etree, html
 
 from inxs import lib, lxml_utils, Rule, Any, MatchesAttributes, Transformation
@@ -92,9 +90,14 @@ def insert_into_template(context, root, template):
     template_head.extend(head.getchildren())
     template_content.extend(body.getchildren())
 
-def append_chapter_title(root, title):
-    title_elem = root.find('head/title')
-    title_elem.text = title + ' | ' + title_elem.text
+def insert_meta(template, section_title, meta_title, meta_author, elmaker):
+    head = template.find('head')
+    title = head.find('title')
+    if title:
+        head.remove(title)
+    head.insert(0, elmaker.title(section_title + ' | ' + meta_title))
+    author_suffix = (' by ' + meta_author) if meta_author else ''
+    head.insert(1, elmaker.meta(name='description', content=meta_title + author_suffix))
 
 def write_tree_out(input, filepath, routes):
     routed_path = os.path.join(args.output_dir, routes[filepath])
@@ -128,15 +131,18 @@ def write_out(input, filepath, routes):
     with open(routed_path, 'wb') as dst:
         dst.write(input)
 
-def transform_document(routes, root_dir, filepath, title, template):
+def transform_document(routes, root_dir, filepath, section_title, meta_title, meta_author, template):
     transformation = Transformation(
+        lib.init_elementmaker(
+            name='elmaker',
+        ),
         Rule(
             Any(MatchesAttributes({'href': None}),
                 MatchesAttributes({'src': None}),),
             route_url,
         ),
-        append_chapter_title,
         insert_into_template,
+        insert_meta,
         context=locals(),
         result_object='context.template'
     )
@@ -155,7 +161,7 @@ def set_titles(element, src_to_title):
     title = element.xpath('./navLabel/text', smart_prefix=True)[0].text
     src_to_title[src] = title
 
-def make_toc_skeleton(template, routes, elmaker):
+def make_toc_skeleton(template, routes, section_title, elmaker):
     head = template.find('head')
     # Add styles to template
     for routed_item in routes.values():
@@ -165,7 +171,7 @@ def make_toc_skeleton(template, routes, elmaker):
     # Add ToC list to content div
     content_div = template.get_element_by_id('content')
     content_child = elmaker.div(
-        elmaker.h1('Contents'),
+        elmaker.h1(section_title),
         id='contents',
     )
     content_div.append(content_child)
@@ -230,12 +236,13 @@ def indent(template, level=0):
         if level and (not template.tail or not template.tail.strip()):
             template.tail = i
 
-def transform_toc(routes, src_to_title, root_dir, filepath, title, template):
+def transform_toc(routes, src_to_title, root_dir, filepath, section_title, meta_title, meta_author, template):
     transformation = Transformation(
         lib.init_elementmaker(
             name='elmaker',
         ),
         make_toc_skeleton,
+        insert_meta,
         Rule('navPoint', set_titles),
         Rule(
             Any(MatchesAttributes({'href': None}),
@@ -298,7 +305,12 @@ def get_handlers(manifest_item, context, mimetype_handlers=default_handlers):
 
     return manifest_item_path, handlers
 
-def handle_all(spine_refs, toc_ref, manifest, context):
+opf_namespaces = {
+    'opf': 'http://www.idpf.org/2007/opf',
+    'dc': 'http://purl.org/dc/elements/1.1/',
+}
+
+def handle_all(spine_refs, toc_ref, manifest, metadata, context):
     handlers_with_input = OrderedDict()
 
     toc_ref = ensure(toc_ref, "Spine section in EPUB package does not have a 'toc' attribute")
@@ -309,6 +321,10 @@ def handle_all(spine_refs, toc_ref, manifest, context):
     toc_src = toc_item.attrib['href']
     context.setdefault('src_to_title', {toc_src: 'Contents'})
     context.setdefault('routes', {})
+    meta_title = metadata.xpath('./dc:title/text()', namespaces=opf_namespaces)
+    meta_author = metadata.xpath('./dc:creator[@opf:role="aut"]/text()', namespaces=opf_namespaces)
+    context.setdefault('meta_title', meta_title[0] if meta_title else '')
+    context.setdefault('meta_author', meta_author[0] if meta_author else '')
 
     context.setdefault(
         'template',
@@ -334,7 +350,7 @@ def handle_all(spine_refs, toc_ref, manifest, context):
     for handlers, srcs in handlers_with_input.items():
         for src in srcs:
             context['filepath'] = src
-            context['title'] = context['src_to_title'].get(src, '')
+            context['section_title'] = context['src_to_title'].get(src, '')
             apply_handlers(handlers, context)
 
 def make_webbook(epub_zip):
@@ -350,14 +366,16 @@ def make_webbook(epub_zip):
 
     with epub_zip.open(root_path) as package_xml:
         package_tree = etree.parse(package_xml)
+        metadata = package_tree.xpath('/package/metadata', smart_prefix=True)
         manifest = package_tree.xpath('/package/manifest', smart_prefix=True)
         spine_refs = package_tree.xpath('/package/spine/itemref/@idref', smart_prefix=True)
         toc_ref = package_tree.xpath('/package/spine/@toc', smart_prefix=True)
 
+    metadata = ensure(metadata, "No metadata section found in EPUB package.")
     manifest = ensure(manifest, "No manifest section found in EPUB package.")
 
     context = { 'root_dir': root_dir }
-    handle_all(spine_refs, toc_ref, manifest, context)
+    handle_all(spine_refs, toc_ref, manifest, metadata, context)
 
 with zf.ZipFile(args.epub_filename) as epub_zip:
     make_webbook(epub_zip)
