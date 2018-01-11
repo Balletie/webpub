@@ -49,7 +49,7 @@ def reorder(entries, order):
             )
     return [ entries[i] for i in entries_order ]
 
-parser = argparse.ArgumentParser(description="Process ePUB documents for web publishing")
+parser = argparse.ArgumentParser(description="Process EPUB documents for web publishing.")
 parser.add_argument('-d', dest='output_dir', metavar='DIR', default='_result', help="Output directory (defaults to ./_result/)")
 parser.add_argument('--spine-order', metavar='N', default=it.count(), nargs='+',
                     type=int_or_toc, action=make_order,
@@ -57,7 +57,9 @@ parser.add_argument('--spine-order', metavar='N', default=it.count(), nargs='+',
 parser.add_argument('--toc-order', metavar='N', default=None, nargs='+',
                     type=int_or_toc, action=make_order,
                     help="Reorder the order of the entries in the table of contents. Input is a sequence of one or more positive non-zero numbers, or the special value 'toc'. (defaults to --spine-order or '1 2 toc 3 ...')")
-parser.add_argument('epub_filename', metavar='INFILE', help="The ePUB input file.")
+parser.add_argument('epub_filename', metavar='INFILE', help="The EPUB input file.")
+parser.add_argument('-t', '--template', metavar='TEMPLATE', default='./default_template.html',
+                    help="The template HTML file in which the content is inserted for each section.")
 
 args = parser.parse_args()
 if not args.toc_order:
@@ -359,7 +361,7 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
 
     context.setdefault(
         'template',
-        html.parse("./dhammatalks_site_template.html").getroot(),
+        html.parse(args.template).getroot(),
     )
     for ref in [toc_ref] + spine_refs:
         manifest_item = manifest.xpath('./item[@id=$ref]', ref=ref, smart_prefix=True)
