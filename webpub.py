@@ -5,7 +5,10 @@ import shutil
 import functools as ft
 import itertools as it
 import dependency_injection
+
 import cssutils
+cssutils.ser.prefs.keepUsedNamespaceRulesOnly = True
+
 from urllib.parse import urlparse, urlunparse
 import mimeparse
 
@@ -38,8 +41,6 @@ class make_order(argparse.Action):
 
 def reorder(entries, order):
     entries_order = list(it.islice(order, len(entries)))
-    print(entries)
-    print(entries_order)
     for i in entries_order:
         if i >= len(entries):
             raise ValueError(
@@ -106,7 +107,7 @@ def insert_into_template(context, root, template):
 def insert_meta(template, section_title, meta_title, meta_author, elmaker):
     head = template.find('head')
     title = head.find('title')
-    if title:
+    if title is not None:
         head.remove(title)
     head.insert(0, elmaker.title(section_title + ' | ' + meta_title))
     author_suffix = (' by ' + meta_author) if meta_author else ''
