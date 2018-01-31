@@ -7,71 +7,98 @@ import itertools as it
 import dependency_injection
 
 import cssutils
-cssutils.ser.prefs.keepUsedNamespaceRulesOnly = True
 
 from urllib.parse import urlparse, urlunparse
 import mimeparse
 
 from lxml import etree, html
 
-from inxs import lib, lxml_utils, Rule, Any, MatchesAttributes, Transformation
+from inxs import lib, Rule, Any, MatchesAttributes, Transformation
 
 import zipfile as zf
 
 import argparse
 
+cssutils.ser.prefs.keepUsedNamespaceRulesOnly = True
+
+
 def int_or_toc(val):
     try:
         i = int(val)
-    except:
+    except ValueError:
         if val == 'toc':
             i = 0
         else:
-            raise argparse.ArgumentTypeError("Invalid argument, must be 'toc' or a number greater than 0")
+            raise argparse.ArgumentTypeError(
+                "Invalid argument, must be 'toc' or a number greater than 0"
+            )
     else:
         if i < 1:
             raise argparse.ArgumentTypeError("Numbers must be greater than 0")
     return i
 
+
 class make_order(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        filled_values = it.chain(values[:], (i for i in it.count(1) if i not in values))
+        filled_values = it.chain(
+            values[:],
+            (i for i in it.count(1) if i not in values)
+        )
         setattr(namespace, self.dest + '_orig', values)
         setattr(namespace, self.dest, filled_values)
+
 
 def reorder(entries, order):
     entries_order = list(it.islice(order, len(entries)))
     for i in entries_order:
         if i >= len(entries):
             raise ValueError(
-                "The value '{}' is out of bounds,"\
-                " only values from 1 up to {} can be used.".format(i, len(entries) - 1)
+                "The value '{}' is out of bounds,"
+                " only values from 1 up to {}"
+                " can be used.".format(i, len(entries) - 1)
             )
-    return [ entries[i] for i in entries_order ]
+    return [entries[i] for i in entries_order]
 
-parser = argparse.ArgumentParser(description="Process EPUB documents for web publishing.")
-parser.add_argument('-d', dest='output_dir', metavar='DIR', default='_result', help="Output directory (defaults to ./_result/)")
-parser.add_argument('--spine-order', metavar='N', default=it.count(), nargs='+',
-                    type=int_or_toc, action=make_order,
-                    help="Reorder the chapter order for next/previous buttons. Input is a sequence of one or more positive non-zero numbers, or the special value 'toc'. (defaults to '1 toc 2 3 ...')")
+
+parser = argparse.ArgumentParser(
+    description="Process EPUB documents for web publishing."
+)
+parser.add_argument('-d', dest='output_dir', metavar='DIR', default='_result',
+                    help="Output directory (defaults to ./_result/)")
+parser.add_argument('--spine-order', metavar='N', default=it.count(),
+                    nargs='+', type=int_or_toc, action=make_order,
+                    help="Reorder the chapter order for next/previous buttons."
+                    " Input is a sequence of one or more positive non-zero"
+                    " numbers, or the special value 'toc'."
+                    " (defaults to '1 toc 2 3 ...')")
 parser.add_argument('--toc-order', metavar='N', default=None, nargs='+',
                     type=int_or_toc, action=make_order,
-                    help="Reorder the order of the entries in the table of contents. Input is a sequence of one or more positive non-zero numbers, or the special value 'toc'. (defaults to --spine-order or '1 2 toc 3 ...')")
-parser.add_argument('epub_filename', metavar='INFILE', help="The EPUB input file.")
-parser.add_argument('-t', '--template', metavar='TEMPLATE', default='./default_template.html',
-                    help="The template HTML file in which the content is inserted for each section.")
+                    help="Reorder the order of the entries in the table of"
+                    " contents. Input is a sequence of one or more positive"
+                    " non-zero numbers, or the special value 'toc'."
+                    " (defaults to --spine-order or '1 2 toc 3 ...')")
+parser.add_argument('epub_filename', metavar='INFILE',
+                    help="The EPUB input file.")
+parser.add_argument('-t', '--template', metavar='TEMPLATE',
+                    default='./default_template.html',
+                    help="The template HTML file in which the content is"
+                    " inserted for each section.")
 
 args = parser.parse_args()
+
 if not args.toc_order:
     args.spine_order, args.toc_order = it.tee(args.spine_order)
 
+
 def is_relative(url):
     return not url.netloc and not url.scheme
+
 
 def get_route(routes, filedir, path):
     path = os.path.normpath(os.path.join(filedir, path))
 
     return routes.get(path)
+
 
 def routed_url(filepath, routes, root_dir, old_url_str):
     url = urlparse(old_url_str)
@@ -86,6 +113,7 @@ def routed_url(filepath, routes, root_dir, old_url_str):
         return new_url_str
     return old_url_str
 
+
 def route_url(routes, filepath, root_dir, element):
     old_url = None
     for attrib in ['href', 'src']:
@@ -98,6 +126,7 @@ def route_url(routes, filepath, root_dir, element):
     element.attrib[attrib] = routed_url(filepath, routes, root_dir, old_url)
     return element
 
+
 def insert_into_template(context, root, template):
     head = root.find('head')
     body = root.find('body')
@@ -106,6 +135,7 @@ def insert_into_template(context, root, template):
     template_head.extend(head.getchildren())
     template_content.extend(body.getchildren())
 
+
 def insert_meta(template, section_title, meta_title, meta_author, elmaker):
     head = template.find('head')
     title = head.find('title')
@@ -113,7 +143,10 @@ def insert_meta(template, section_title, meta_title, meta_author, elmaker):
         head.remove(title)
     head.insert(0, elmaker.title(section_title + ' | ' + meta_title))
     author_suffix = (' by ' + meta_author) if meta_author else ''
-    head.insert(1, elmaker.meta(name='description', content=meta_title + author_suffix))
+    head.insert(1, elmaker.meta(
+        name='description', content=meta_title + author_suffix
+    ))
+
 
 def insert_prev_next(template, routes, filepath, toc_src, spine, elmaker):
     spine_index = spine.index(filepath)
@@ -123,45 +156,63 @@ def insert_prev_next(template, routes, filepath, toc_src, spine, elmaker):
     container = elmaker.div(id="nextbutton")
     if prev_src:
         container.append(elmaker.a(
-            elmaker.img(src="/images/actions/go-next-button2.png", title="Previous page"),
+            elmaker.img(
+                src="/images/actions/go-next-button2.png",
+                title="Previous page"
+            ),
             {'href': routes[prev_src], 'class': "next"}
         ))
     container.append(elmaker.a(
-        elmaker.img(src="/images/actions/ToC_button.png", title="Table of Contents"),
+        elmaker.img(
+            src="/images/actions/ToC_button.png",
+            title="Table of Contents"
+        ),
         {'href': routes[toc_src], 'class': "next"}
     ))
     if next_src:
         container.append(elmaker.a(
-            elmaker.img(src="/images/actions/go-next-button2.png", title="Next page"),
+            elmaker.img(
+                src="/images/actions/go-next-button2.png",
+                title="Next page"
+            ),
             {'href': routes[next_src], 'class': "next"}
         ))
     template_content = template.get_element_by_id('content')
     template_content.append(container)
+
 
 def write_tree_out(input, filepath, routes):
     routed_path = os.path.join(args.output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
-        dst.write(html.tostring(input,
+        dst.write(html.tostring(
+            input,
             doctype='<!DOCTYPE html>',
             encoding=input.docinfo.encoding,
             pretty_print=True,
         ))
+
 
 def copy_out(filepath, root_dir, routes):
     src_zip_path = os.path.join(root_dir, filepath)
     routed_path = os.path.join(args.output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
-    with epub_zip.open(src_zip_path, 'r') as src, open(routed_path, 'wb') as dst:
-        shutil.copyfileobj(src, dst, 8192)
+    with epub_zip.open(src_zip_path, 'r') as src:
+        with open(routed_path, 'wb') as dst:
+            shutil.copyfileobj(src, dst, 8192)
+
 
 def replace_urls(routes, root_dir, filepath):
     style_string = epub_zip.read(os.path.join(root_dir, filepath))
     stylesheet = cssutils.parseString(style_string)
-    cssutils.replaceUrls(stylesheet, ft.partial(routed_url, filepath, routes, root_dir))
+    cssutils.replaceUrls(
+        stylesheet,
+        ft.partial(routed_url, filepath, routes, root_dir)
+    )
     return stylesheet.cssText
+
 
 def write_out(input, filepath, routes):
     routed_path = os.path.join(args.output_dir, routes[filepath])
@@ -170,7 +221,9 @@ def write_out(input, filepath, routes):
     with open(routed_path, 'wb') as dst:
         dst.write(input)
 
-def transform_document(routes, spine, root_dir, filepath, toc_src, section_title, meta_title, meta_author, template):
+
+def transform_document(routes, spine, root_dir, filepath, toc_src,
+                       section_title, meta_title, meta_author, template):
     transformation = Transformation(
         lib.init_elementmaker(
             name='elmaker',
@@ -196,17 +249,21 @@ def transform_document(routes, spine, root_dir, filepath, toc_src, section_title
 
     return result.getroottree()
 
+
 def set_titles(element, src_to_title):
     src = element.xpath('./content/@src', smart_prefix=True)[0]
     title = element.xpath('./navLabel/text', smart_prefix=True)[0].text
     src_to_title[src] = title
+
 
 def make_toc_skeleton(template, routes, section_title, elmaker):
     head = template.find('head')
     # Add styles to template
     for routed_item in routes.values():
         if routed_item.endswith('.css'):
-            head.append(elmaker.link(href=routed_item, rel="stylesheet", type="text/css"))
+            head.append(elmaker.link(
+                href=routed_item, rel="stylesheet", type="text/css"
+            ))
 
     # Add ToC list to content div
     content_div = template.get_element_by_id('content')
@@ -216,7 +273,9 @@ def make_toc_skeleton(template, routes, section_title, elmaker):
     )
     content_div.append(content_child)
 
+
 TocEntry = namedtuple('TocEntry', ['title', 'href', 'children'])
+
 
 def make_toc_tree(root):
     entries = []
@@ -226,10 +285,13 @@ def make_toc_tree(root):
         entries.append(TocEntry(title, href, make_toc_tree(np)))
     return entries
 
+
 def make_toc(root, filepath, routes, elmaker):
     root = root.xpath('./navMap', smart_prefix=True)[0]
-    toc_entries = [ TocEntry('Table of Contents', routes[filepath], []) ] + make_toc_tree(root)
+    toc_self_entry = TocEntry('Table of Contents', routes[filepath], [])
+    toc_entries = [toc_self_entry] + make_toc_tree(root)
     return reorder(toc_entries, args.toc_order)
+
 
 def toc_tree_to_html(previous_result, elmaker):
     ul = elmaker.ul
@@ -247,9 +309,11 @@ def toc_tree_to_html(previous_result, elmaker):
         return [toc]
     return []
 
+
 def list_contents(previous_result, template, elmaker):
     contents_div = template.get_element_by_id('contents')
     contents_div.extend(toc_tree_to_html(previous_result, elmaker))
+
 
 def indent(template, level=0):
     i = "\n" + level*"  "
@@ -266,7 +330,9 @@ def indent(template, level=0):
         if level and (not template.tail or not template.tail.strip()):
             template.tail = i
 
-def transform_toc(routes, spine, toc_src, src_to_title, root_dir, filepath, section_title, meta_title, meta_author, template):
+
+def transform_toc(routes, spine, toc_src, src_to_title, root_dir, filepath,
+                  section_title, meta_title, meta_author, template):
     transformation = Transformation(
         lib.init_elementmaker(
             name='elmaker',
@@ -297,20 +363,24 @@ def transform_toc(routes, spine, toc_src, src_to_title, root_dir, filepath, sect
 
     return result.getroottree()
 
+
 def ensure(result, error_message):
     if not result:
         raise Exception(error_message)
 
     return result[0]
 
+
 # Dict from mimetype media ranges to handlers and destination directory.
 default_handlers = {
     'application/xhtml+xml': ('./', (transform_document, write_tree_out)),
-    'application/x-dtbncx+xml': (lambda _: './Contents.html', (transform_toc, write_tree_out)),
+    'application/x-dtbncx+xml': (lambda _: './Contents.html',
+                                 (transform_toc, write_tree_out)),
     'text/css': ('./css/', (replace_urls, write_out)),
     'image/*': ('./img/', (copy_out,)),
     '*/*': ('./etc/', (copy_out,))
 }
+
 
 def apply_handlers(handlers, context):
     print("Start handling {}.".format(context['filepath']))
@@ -321,6 +391,7 @@ def apply_handlers(handlers, context):
         print(" - {}".format(handler.__name__))
         context['input'] = handler(**kwargs)
 
+
 def get_handlers(manifest_item, context, mimetype_handlers=default_handlers):
     manifest_item_path = manifest_item.attrib["href"]
     manifest_mime = manifest_item.attrib["media-type"]
@@ -329,33 +400,49 @@ def get_handlers(manifest_item, context, mimetype_handlers=default_handlers):
     dst, handlers = mimetype_handlers[mime_match]
     if not callable(dst):
         old_dst = dst
-        dst = lambda path: os.path.join(old_dst, os.path.basename(path))
+
+        def append_basename(path):
+            return os.path.join(old_dst, os.path.basename(path))
+
+        dst = append_basename
 
     dst = dst(manifest_item_path)
     context['routes'][manifest_item_path] = dst
 
     return manifest_item_path, handlers
 
+
 opf_namespaces = {
     'opf': 'http://www.idpf.org/2007/opf',
     'dc': 'http://purl.org/dc/elements/1.1/',
 }
 
+
 def handle_all(spine_refs, toc_ref, manifest, metadata, context):
     handlers_with_input = OrderedDict()
 
-    toc_ref = ensure(toc_ref, "Spine section in EPUB package does not have a 'toc' attribute")
+    toc_ref = ensure(
+        toc_ref,
+        "Spine section in EPUB package does not have a 'toc' attribute"
+    )
     toc_item = ensure(
         manifest.xpath('./item[@id=$ref]', ref=toc_ref, smart_prefix=True),
-        "Couldn't find item in manifest for toc reference {} in spine section.".format(toc_ref),
+        "Couldn't find item in manifest for toc reference {}"
+        " in spine section.".format(toc_ref)
     )
     toc_src = toc_item.attrib['href']
     context.setdefault('src_to_title', {toc_src: 'Contents'})
     context.setdefault('routes', {})
     context.setdefault('spine', [])
     context.setdefault('toc_src', toc_src)
-    meta_title = metadata.xpath('./dc:title/text()', namespaces=opf_namespaces)
-    meta_author = metadata.xpath('./dc:creator[@opf:role="aut"]/text()', namespaces=opf_namespaces)
+    meta_title = metadata.xpath(
+        './dc:title/text()',
+        namespaces=opf_namespaces
+    )
+    meta_author = metadata.xpath(
+        './dc:creator[@opf:role="aut"]/text()',
+        namespaces=opf_namespaces
+    )
     context.setdefault('meta_title', meta_title[0] if meta_title else '')
     context.setdefault('meta_author', meta_author[0] if meta_author else '')
 
@@ -364,7 +451,10 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
         html.parse(args.template).getroot(),
     )
     for ref in [toc_ref] + spine_refs:
-        manifest_item = manifest.xpath('./item[@id=$ref]', ref=ref, smart_prefix=True)
+        manifest_item = manifest.xpath(
+            './item[@id=$ref]',
+            ref=ref, smart_prefix=True
+        )
         if not manifest_item:
             print(
                 "Warning: couldn't find item in manifest"
@@ -389,6 +479,7 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
             context['section_title'] = context['src_to_title'].get(src, '')
             apply_handlers(handlers, context)
 
+
 def make_webbook(epub_zip):
     root_path = None
     with epub_zip.open('META-INF/container.xml') as container_xml:
@@ -397,21 +488,28 @@ def make_webbook(epub_zip):
             '//container/rootfiles/rootfile/@full-path',
             smart_prefix=True)
 
-    root_path = ensure(root_path, "No filepath found in 'META-INF/container.xml'")
+    root_path = ensure(
+        root_path,
+        "No filepath found in 'META-INF/container.xml'"
+    )
     root_dir = os.path.dirname(root_path)
 
     with epub_zip.open(root_path) as package_xml:
         package_tree = etree.parse(package_xml)
         metadata = package_tree.xpath('/package/metadata', smart_prefix=True)
         manifest = package_tree.xpath('/package/manifest', smart_prefix=True)
-        spine_refs = package_tree.xpath('/package/spine/itemref/@idref', smart_prefix=True)
+        spine_refs = package_tree.xpath(
+            '/package/spine/itemref/@idref',
+            smart_prefix=True
+        )
         toc_ref = package_tree.xpath('/package/spine/@toc', smart_prefix=True)
 
     metadata = ensure(metadata, "No metadata section found in EPUB package.")
     manifest = ensure(manifest, "No manifest section found in EPUB package.")
 
-    context = { 'root_dir': root_dir }
+    context = {'root_dir': root_dir}
     handle_all(spine_refs, toc_ref, manifest, metadata, context)
+
 
 with zf.ZipFile(args.epub_filename) as epub_zip:
     make_webbook(epub_zip)
