@@ -6,4 +6,8 @@ with (import ./python-env.nix { inherit pkgs; });
   inxs
   ps.python_mimeparse
   ps.cssutils
+  ps.flake8
+  ps.pylint
+  ps.jedi
+  ps.epc
 ])).env
