@@ -12,7 +12,6 @@ setup(
     install_requires=[
         'inxs',
         'cssutils',
-        'mimeparse',
         'dependency-injection',
         'python-mimeparse',
     ],
