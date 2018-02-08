@@ -295,7 +295,7 @@ def make_toc(root, filepath, routes, elmaker):
     return reorder(toc_entries, args.toc_order)
 
 
-def toc_tree_to_html(previous_result, elmaker):
+def toc_tree_to_html(previous_result, elmaker, level=0):
     ul = elmaker.ul
     li = elmaker.li
     a = elmaker.a
@@ -303,11 +303,14 @@ def toc_tree_to_html(previous_result, elmaker):
     for entry in previous_result:
         child = li(
             a(entry.title, href=entry.href),
-            *toc_tree_to_html(entry.children, elmaker)
+            *toc_tree_to_html(entry.children, elmaker, level=level + 1)
         )
         children.append(child)
     if children:
-        toc = ul(*children)
+        extra_kwargs = {}
+        if level == 0:
+            extra_kwargs = {"class": "no-ind"}
+        toc = ul(*children, **extra_kwargs)
         return [toc]
     return []
 
