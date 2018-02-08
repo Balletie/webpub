@@ -93,7 +93,7 @@ if not args.toc_order:
 
 
 def is_relative(url):
-    return not url.netloc and not url.scheme
+    return not url.netloc and not url.scheme and url.path
 
 
 def get_route(routes, filedir, path):
