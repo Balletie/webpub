@@ -20,6 +20,8 @@ import zipfile as zf
 import argparse
 
 cssutils.ser.prefs.keepUsedNamespaceRulesOnly = True
+cssutils.ser.prefs.indentClosingBrace = False
+cssutils.ser.prefs.omitLastSemicolon = False
 
 
 def int_or_toc(val):
