@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from collections import OrderedDict, namedtuple
 import os
 import os.path
