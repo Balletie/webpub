@@ -114,7 +114,8 @@ class SuttaRefContentHandler(ContentHandler, object):
                 )
 
             self.out.startElement('a', {
-                'href': '/suttas/' + url
+                'href': '/suttas/' + url,
+                'class': 'sutta-ref',
             })
             self.out.characters(full_match)
             self.out.endElement('a')
