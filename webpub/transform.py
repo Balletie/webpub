@@ -1,4 +1,4 @@
-def insert_into_template(context, root, template):
+def insert_into_template(root, template):
     head = root.find('head')
     body = root.find('body')
     template_head = template.find('head')
