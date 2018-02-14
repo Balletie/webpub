@@ -1,187 +1,20 @@
 #!/usr/bin/env python
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 import os
 import os.path
 import shutil
-import functools as ft
-import itertools as it
 import dependency_injection
 
-import cssutils
-
-from urllib.parse import urlparse, urlunparse
 import mimeparse
 
 from lxml import etree, html
 
-from inxs import lib, Rule, Any, MatchesAttributes, Transformation
-
 import zipfile as zf
 
-import argparse
-
-cssutils.ser.prefs.keepUsedNamespaceRulesOnly = True
-cssutils.ser.prefs.indentClosingBrace = False
-cssutils.ser.prefs.omitLastSemicolon = False
-
-
-def int_or_toc(val):
-    try:
-        i = int(val)
-    except ValueError:
-        if val == 'toc':
-            i = 0
-        else:
-            raise argparse.ArgumentTypeError(
-                "Invalid argument, must be 'toc' or a number greater than 0"
-            )
-    else:
-        if i < 1:
-            raise argparse.ArgumentTypeError("Numbers must be greater than 0")
-    return i
-
-
-class make_order(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        filled_values = it.chain(
-            values[:],
-            (i for i in it.count(1) if i not in values)
-        )
-        setattr(namespace, self.dest + '_orig', values)
-        setattr(namespace, self.dest, filled_values)
-
-
-def reorder(entries, order):
-    entries_order = list(it.islice(order, len(entries)))
-    for i in entries_order:
-        if i >= len(entries):
-            raise ValueError(
-                "The value '{}' is out of bounds,"
-                " only values from 1 up to {}"
-                " can be used.".format(i, len(entries) - 1)
-            )
-    return [entries[i] for i in entries_order]
-
-
-parser = argparse.ArgumentParser(
-    description="Process EPUB documents for web publishing."
-)
-parser.add_argument('-d', dest='output_dir', metavar='DIR', default='_result',
-                    help="Output directory (defaults to ./_result/)")
-parser.add_argument('--spine-order', metavar='N', default=it.count(),
-                    nargs='+', type=int_or_toc, action=make_order,
-                    help="Reorder the chapter order for next/previous buttons."
-                    " Input is a sequence of one or more positive non-zero"
-                    " numbers, or the special value 'toc'."
-                    " (defaults to '1 toc 2 3 ...')")
-parser.add_argument('--toc-order', metavar='N', default=None, nargs='+',
-                    type=int_or_toc, action=make_order,
-                    help="Reorder the order of the entries in the table of"
-                    " contents. Input is a sequence of one or more positive"
-                    " non-zero numbers, or the special value 'toc'."
-                    " (defaults to --spine-order or '1 2 toc 3 ...')")
-parser.add_argument('epub_filename', metavar='INFILE',
-                    help="The EPUB input file.")
-parser.add_argument('-t', '--template', metavar='TEMPLATE',
-                    default='./default_template.html',
-                    help="The template HTML file in which the content is"
-                    " inserted for each section.")
-
-args = parser.parse_args()
-
-if not args.toc_order:
-    args.spine_order, args.toc_order = it.tee(args.spine_order)
-
-
-def is_relative(url):
-    return not url.netloc and not url.scheme and url.path
-
-
-def get_route(routes, filedir, path):
-    path = os.path.normpath(os.path.join(filedir, path))
-
-    return routes.get(path)
-
-
-def routed_url(filepath, routes, root_dir, old_url_str):
-    url = urlparse(old_url_str)
-    if is_relative(url):
-        routed = get_route(routes, os.path.dirname(filepath), url.path)
-        routed_cur_path = routes[filepath]
-        rel_routed = os.path.relpath(routed, os.path.dirname(routed_cur_path))
-        url_list = list(url)
-        url_list[2] = rel_routed
-        new_url_str = urlunparse(url_list)
-        print("Routed {} to {}.".format(old_url_str, new_url_str))
-        return new_url_str
-    return old_url_str
-
-
-def route_url(routes, filepath, root_dir, element):
-    old_url = None
-    for attrib in ['href', 'src']:
-        old_url = element.attrib.get(attrib)
-        if old_url:
-            break
-    else:
-        return element
-
-    element.attrib[attrib] = routed_url(filepath, routes, root_dir, old_url)
-    return element
-
-
-def insert_into_template(context, root, template):
-    head = root.find('head')
-    body = root.find('body')
-    template_head = template.find('head')
-    template_content = template.get_element_by_id('content')
-    template_head.extend(head.getchildren())
-    template_content.extend(body.getchildren())
-
-
-def insert_meta(template, section_title, meta_title, meta_author, elmaker):
-    head = template.find('head')
-    title = head.find('title')
-    if title is not None:
-        head.remove(title)
-    head.insert(0, elmaker.title(section_title + ' | ' + meta_title))
-    author_suffix = (' by ' + meta_author) if meta_author else ''
-    head.insert(1, elmaker.meta(
-        name='description', content=meta_title + author_suffix
-    ))
-
-
-def insert_prev_next(template, routes, filepath, toc_src, spine, elmaker):
-    spine_index = spine.index(filepath)
-    prev_src = spine[spine_index - 1] if spine_index > 0 else None
-    next_src = spine[spine_index + 1] if spine_index < len(spine) - 1 else None
-
-    container = elmaker.div(id="nextbutton")
-    if prev_src:
-        container.append(elmaker.a(
-            elmaker.img(
-                src="/images/actions/go-next-button2.png",
-                title="Previous page"
-            ),
-            {'href': routes[prev_src], 'class': "next"}
-        ))
-    container.append(elmaker.a(
-        elmaker.img(
-            src="/images/actions/ToC_button.png",
-            title="Table of Contents"
-        ),
-        {'href': routes[toc_src], 'class': "next"}
-    ))
-    if next_src:
-        container.append(elmaker.a(
-            elmaker.img(
-                src="/images/actions/go-next-button2.png",
-                title="Next page"
-            ),
-            {'href': routes[next_src], 'class': "next"}
-        ))
-    template_content = template.get_element_by_id('content')
-    template_content.append(container)
+from webpub.args import args, reorder
+from webpub.transform_document import transform_document
+from webpub.transform_toc import transform_toc
+from webpub.css import replace_urls
 
 
 def write_tree_out(input, filepath, routes):
@@ -207,167 +40,12 @@ def copy_out(filepath, root_dir, routes):
             shutil.copyfileobj(src, dst, 8192)
 
 
-def replace_urls(routes, root_dir, filepath):
-    style_string = epub_zip.read(os.path.join(root_dir, filepath))
-    stylesheet = cssutils.parseString(style_string)
-    cssutils.replaceUrls(
-        stylesheet,
-        ft.partial(routed_url, filepath, routes, root_dir)
-    )
-    return stylesheet.cssText
-
-
 def write_out(input, filepath, routes):
     routed_path = os.path.join(args.output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
         dst.write(input)
-
-
-def transform_document(routes, spine, root_dir, filepath, toc_src,
-                       section_title, meta_title, meta_author, template):
-    transformation = Transformation(
-        lib.init_elementmaker(
-            name='elmaker',
-        ),
-        Rule(
-            Any(MatchesAttributes({'href': None}),
-                MatchesAttributes({'src': None}),),
-            route_url,
-        ),
-        insert_into_template,
-        insert_meta,
-        insert_prev_next,
-        context=locals(),
-        result_object='context.template'
-    )
-
-    print("Transforming {}".format(filepath))
-    with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
-        doc_tree = html.parse(doc_xml)
-
-    root = doc_tree.getroot()
-    result = transformation(root)
-
-    return result.getroottree()
-
-
-def set_titles(element, src_to_title):
-    src = element.xpath('./content/@src', smart_prefix=True)[0]
-    title = element.xpath('./navLabel/text', smart_prefix=True)[0].text
-    src_to_title[src] = title
-
-
-def make_toc_skeleton(template, routes, section_title, elmaker):
-    head = template.find('head')
-    # Add styles to template
-    for routed_item in routes.values():
-        if routed_item.endswith('.css'):
-            head.append(elmaker.link(
-                href=routed_item, rel="stylesheet", type="text/css"
-            ))
-
-    # Add ToC list to content div
-    content_div = template.get_element_by_id('content')
-    content_child = elmaker.div(
-        elmaker.h1(section_title),
-        id='contents',
-    )
-    content_div.append(content_child)
-
-
-TocEntry = namedtuple('TocEntry', ['title', 'href', 'children'])
-
-
-def make_toc_tree(root):
-    entries = []
-    for np in root.xpath('./navPoint', smart_prefix=True):
-        title = np.xpath('./navLabel/text', smart_prefix=True)[0].text
-        href = np.xpath('./content/@src', smart_prefix=True)[0]
-        entries.append(TocEntry(title, href, make_toc_tree(np)))
-    return entries
-
-
-def make_toc(root, filepath, routes, elmaker):
-    root = root.xpath('./navMap', smart_prefix=True)[0]
-    toc_self_entry = TocEntry('Table of Contents', routes[filepath], [])
-    toc_entries = [toc_self_entry] + make_toc_tree(root)
-    return reorder(toc_entries, args.toc_order)
-
-
-def toc_tree_to_html(previous_result, elmaker, level=0):
-    ul = elmaker.ul
-    li = elmaker.li
-    a = elmaker.a
-    children = list()
-    for entry in previous_result:
-        child = li(
-            a(entry.title, href=entry.href),
-            *toc_tree_to_html(entry.children, elmaker, level=level + 1)
-        )
-        children.append(child)
-    if children:
-        extra_kwargs = {}
-        if level == 0:
-            extra_kwargs = {"class": "no-ind"}
-        toc = ul(*children, **extra_kwargs)
-        return [toc]
-    return []
-
-
-def list_contents(previous_result, template, elmaker):
-    contents_div = template.get_element_by_id('contents')
-    contents_div.extend(toc_tree_to_html(previous_result, elmaker))
-
-
-def indent(template, level=0):
-    i = "\n" + level*"  "
-    if len(template):
-        if not template.text or not template.text.strip():
-            template.text = i + "  "
-        if not template.tail or not template.tail.strip():
-            template.tail = i
-        for template in template:
-            indent(template, level+1)
-        if not template.tail or not template.tail.strip():
-            template.tail = i
-    else:
-        if level and (not template.tail or not template.tail.strip()):
-            template.tail = i
-
-
-def transform_toc(routes, spine, toc_src, src_to_title, root_dir, filepath,
-                  section_title, meta_title, meta_author, template):
-    transformation = Transformation(
-        lib.init_elementmaker(
-            name='elmaker',
-        ),
-        make_toc_skeleton,
-        insert_meta,
-        insert_prev_next,
-        Rule('navPoint', set_titles),
-        Rule(
-            Any(MatchesAttributes({'href': None}),
-                MatchesAttributes({'src': None}),),
-            route_url,
-        ),
-        make_toc,
-        list_contents,
-        indent,
-        result_object='context.template',
-        context=locals()
-    )
-
-    print("Transforming {}".format(filepath))
-    with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
-        parser = etree.XMLParser(remove_blank_text=True)
-        doc_tree = etree.parse(doc_xml, parser)
-
-    root = doc_tree.getroot()
-    result = transformation(root, src_to_title=src_to_title)
-
-    return result.getroottree()
 
 
 def ensure(result, error_message):
@@ -513,7 +191,10 @@ def make_webbook(epub_zip):
     metadata = ensure(metadata, "No metadata section found in EPUB package.")
     manifest = ensure(manifest, "No manifest section found in EPUB package.")
 
-    context = {'root_dir': root_dir}
+    context = {
+        'root_dir': root_dir,
+        'epub_zip': epub_zip,
+    }
     handle_all(spine_refs, toc_ref, manifest, metadata, context)
 
 
