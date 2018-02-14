@@ -28,7 +28,19 @@ class make_order(argparse.Action):
         setattr(namespace, self.dest, filled_values)
 
 
+# ArgumentParser for parsing the configuration file parameter.
+config_arg_parser = argparse.ArgumentParser(add_help=False)
+config_arg_parser.add_argument('-c', '--conf-file', metavar='CONFFILE',
+                               help="Optional conf file which specifies the"
+                               " arguments in a file instead of using the"
+                               " commandline. Syntax is the same as the"
+                               " commandline arguments, and optionally each"
+                               " argument word can be specified on a new line."
+                               " Commandline arguments take precedence over"
+                               " those specified in the file.")
+
 parser = argparse.ArgumentParser(
+    parents=[config_arg_parser],
     description="Process EPUB documents for web publishing."
 )
 parser.add_argument('-d', dest='output_dir', metavar='DIR', default='_result',
@@ -54,7 +66,16 @@ parser.add_argument('-t', '--template', metavar='TEMPLATE',
 
 
 def parse_args():
-    args = parser.parse_args()
+    # Use parse_known_args to only parse the configuration argument.
+    # The rest of the arguments (leftover_argv) is passed to the main parser.
+    args, leftover_argv = config_arg_parser.parse_known_args()
+
+    conf_argv = []
+    if args.conf_file:
+        with open(args.conf_file) as conf_file:
+            conf_argv = conf_file.read().split()
+
+    args = parser.parse_args(conf_argv + leftover_argv)
 
     if not args.toc_order:
         args.spine_order, args.toc_order = it.tee(args.spine_order)
