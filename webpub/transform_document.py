@@ -53,7 +53,7 @@ def dhp_reference(text, sep, subsection):
 sutta_abbrev_urls = {
     'AN': 'AN/AN{subsection}{sep}{text}.html',
     'MN': 'MN/MN{text}.html',
-    'SN': 'SN/SN{text}.html',
+    'SN': 'SN/SN{subsection}{sep}{text}.html',
     'DN': 'DN/DN{text}.html',
     'Dhp': dhp_reference,
     'Iti': 'KN/Iti/iti{text}.html',
@@ -86,9 +86,11 @@ class SuttaRefContentHandler(ContentHandler, object):
         matches = re.finditer(sutta_ref_regex, data)
         for matchobj in matches:
             full_match = matchobj.group(0)
+            section = matchobj.group('section')
             text = matchobj.group('text') \
                 or matchobj.group('text_or_subsection')
             subsection = sep = ''
+
             if matchobj.group('text'):
                 subsection = matchobj.group('text_or_subsection')
                 sep = '_'
@@ -101,9 +103,7 @@ class SuttaRefContentHandler(ContentHandler, object):
 
             self.out.characters(before)
 
-            url_format = sutta_abbrev_urls.get(
-                matchobj.group('section')
-            )
+            url_format = sutta_abbrev_urls.get(section)
             if callable(url_format):
                 url = url_format(
                     text=text, sep=sep, subsection=subsection
