@@ -12,7 +12,10 @@ def insert_meta(template, section_title, meta_title, meta_author, elmaker):
     title = head.find('title')
     if title is not None:
         head.remove(title)
-    head.insert(0, elmaker.title(section_title + ' | ' + meta_title))
+    title = meta_title
+    if section_title:
+        title = section_title + ' | ' + title
+    head.insert(0, elmaker.title(title))
     author_suffix = (' by ' + meta_author) if meta_author else ''
     head.insert(1, elmaker.meta(
         name='description', content=meta_title + author_suffix
