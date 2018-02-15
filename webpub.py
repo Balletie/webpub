@@ -57,7 +57,10 @@ def ensure(result, error_message):
 
 # Dict from mimetype media ranges to handlers and destination directory.
 default_handlers = {
-    'application/xhtml+xml': ('./', (transform_document, write_tree_out)),
+    'application/xhtml+xml': (lambda path: './' + os.path.basename(
+        os.path.splitext(path)[0] + '.html'
+    ),
+                              (transform_document, write_tree_out)),
     'application/x-dtbncx+xml': (lambda _: './Contents.html',
                                  (transform_toc, write_tree_out)),
     'text/css': ('./css/', (replace_urls, write_out)),
