@@ -43,30 +43,33 @@ dhp_last_text_numbers = [
 ]
 
 
-def dhp_reference(text, sep, subsection):
+def dhp_reference(numeral, text, sep, subsection):
     text_num = int(text)
     chapter_num = bisect.bisect_left(dhp_last_text_numbers, text_num) + 1
 
-    return f'KN/Dhp/Ch{chapter_num:02}.html#dhp{text_num:03}'
+    return f'/suttas/KN/Dhp/Ch{chapter_num:02}.html#dhp{text_num:03}'
 
 
 sutta_abbrev_urls = {
-    'AN': 'AN/AN{subsection}{sep}{text}.html',
-    'MN': 'MN/MN{text}.html',
-    'SN': 'SN/SN{subsection}{sep}{text}.html',
-    'DN': 'DN/DN{text}.html',
+    'AN': '/suttas/AN/AN{subsection}{sep}{text}.html',
+    'MN': '/suttas/MN/MN{text}.html',
+    'SN': '/suttas/SN/SN{subsection}{sep}{text}.html',
+    'DN': '/suttas/DN/DN{text}.html',
     'Dhp': dhp_reference,
-    'Iti': 'KN/Iti/iti{text}.html',
-    'Khp': 'KN/Khp/khp{text}.html',
-    'Sn': 'KN/StNp/StNp{subsection}{sep}{text}.html',
-    'Snp': 'KN/StNp/StNp{subsection}{sep}{text}.html',
-    'Thag': 'KN/Thag/thag{subsection}{sep}{text}.html',
-    'Thig': 'KN/Thig/thig{subsection}{sep}{text}.html',
-    'Ud': 'KN/Ud/ud{subsection}{sep}{text}.html',
+    'Iti': '/suttas/KN/Iti/iti{text}.html',
+    'Khp': '/suttas/KN/Khp/khp{text}.html',
+    'Sn': '/suttas/KN/StNp/StNp{subsection}{sep}{text}.html',
+    'Snp': '/suttas/KN/StNp/StNp{subsection}{sep}{text}.html',
+    'Thag': '/suttas/KN/Thag/thag{subsection}{sep}{text}.html',
+    'Thig': '/suttas/KN/Thig/thig{subsection}{sep}{text}.html',
+    'Ud': '/suttas/KN/Ud/ud{subsection}{sep}{text}.html',
+    'Mv': '/vinaya/Mv/Mv{numeral}.html#pts{subsection}{sep}{text}',
 }
 
 sutta_ref_regex_template = \
-    r"(?P<section>{})\s?(?P<text_or_subsection>[0-9]+)[.:]?(?P<text>[0-9]+)?"\
+    r"(?P<section>{})\s?"\
+    r"(?P<numeral>[IXV])?[.:]?"\
+    r"(?P<text_or_subsection>[0-9]+)[.:]?(?P<text>[0-9]+)?"\
     r"(?:[-–](?P<text_end>[0-9]+))?"  # Includes ranges of texts
 
 sutta_ref_regex = sutta_ref_regex_template.format(
@@ -86,6 +89,7 @@ class SuttaRefContentHandler(ContentHandler, object):
         matches = re.finditer(sutta_ref_regex, data)
         for matchobj in matches:
             full_match = matchobj.group(0)
+            numeral = matchobj.group('numeral')
             section = matchobj.group('section')
             text = matchobj.group('text') \
                 or matchobj.group('text_or_subsection')
@@ -106,15 +110,15 @@ class SuttaRefContentHandler(ContentHandler, object):
             url_format = sutta_abbrev_urls.get(section)
             if callable(url_format):
                 url = url_format(
-                    text=text, sep=sep, subsection=subsection
+                    numeral=numeral, text=text, sep=sep, subsection=subsection
                 )
             else:
                 url = url_format.format(
-                    text=text, sep=sep, subsection=subsection
+                    numeral=numeral, text=text, sep=sep, subsection=subsection
                 )
 
             self.out.startElement('a', {
-                'href': '/suttas/' + url,
+                'href': url,
                 'class': 'sutta-ref',
             })
             self.out.characters(full_match)
