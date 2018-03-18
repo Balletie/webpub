@@ -2,19 +2,7 @@
 
 with pkgs;
 rec {
-  python = python36.override {
-    packageOverrides = self: super: {
-      lxml = super.lxml.overridePythonAttrs (oldAttrs: rec {
-        src = pkgs.fetchurl {
-          name = oldAttrs.src.name;
-          url = "https://github.com/funkyfuture/lxml/tarball/smart_xpath#egg=lxml";
-          sha256 = "1z3wmci4m28fb6zq1s8qcn2z4ia6ddbi4rp6wlf40p6xz7mhw8l7";
-        };
-
-	buildInputs = oldAttrs.buildInputs ++ [ super.cython ];
-      });
-    };
-  };
+  python = python36;
 
   dependency_injection = with python.pkgs; buildPythonPackage rec {
     name = "dependency-injection-${version}";

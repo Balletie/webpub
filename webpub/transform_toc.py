@@ -10,9 +10,14 @@ from .route import route_url
 from .transform import insert_meta, insert_prev_next
 
 
+ncx_namespace = {
+    'ncx': "http://www.daisy.org/z3986/2005/ncx/",
+}
+
+
 def set_titles(element, src_to_title):
-    src = element.xpath('./content/@src', smart_prefix=True)[0]
-    title = element.xpath('./navLabel/text', smart_prefix=True)[0].text
+    src = element.xpath('./ncx:content/@src', namespaces=ncx_namespace)[0]
+    title = element.xpath('./ncx:navLabel/ncx:text', namespaces=ncx_namespace)[0].text
     src_to_title[src] = title
 
 
@@ -39,15 +44,15 @@ TocEntry = namedtuple('TocEntry', ['title', 'href', 'children'])
 
 def make_toc_tree(root):
     entries = []
-    for np in root.xpath('./navPoint', smart_prefix=True):
-        title = np.xpath('./navLabel/text', smart_prefix=True)[0].text
-        href = np.xpath('./content/@src', smart_prefix=True)[0]
+    for np in root.xpath('./ncx:navPoint', namespaces=ncx_namespace):
+        title = np.xpath('./ncx:navLabel/ncx:text', namespaces=ncx_namespace)[0].text
+        href = np.xpath('./ncx:content/@src', namespaces=ncx_namespace)[0]
         entries.append(TocEntry(title, href, make_toc_tree(np)))
     return entries
 
 
 def make_toc(root, filepath, routes, elmaker):
-    root = root.xpath('./navMap', smart_prefix=True)[0]
+    root = root.xpath('./ncx:navMap', namespaces=ncx_namespace)[0]
     toc_self_entry = TocEntry('Table of Contents', routes[filepath], [])
     toc_entries = [toc_self_entry] + make_toc_tree(root)
     return reorder(toc_entries, args.toc_order)

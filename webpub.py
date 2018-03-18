@@ -99,6 +99,10 @@ def get_handlers(manifest_item, context, mimetype_handlers=default_handlers):
     return manifest_item_path, handlers
 
 
+ocf_namespace = {
+    'ocf': 'urn:oasis:names:tc:opendocument:xmlns:container',
+}
+
 opf_namespaces = {
     'opf': 'http://www.idpf.org/2007/opf',
     'dc': 'http://purl.org/dc/elements/1.1/',
@@ -113,7 +117,7 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
         "Spine section in EPUB package does not have a 'toc' attribute"
     )
     toc_item = ensure(
-        manifest.xpath('./item[@id=$ref]', ref=toc_ref, smart_prefix=True),
+        manifest.xpath('./opf:item[@id=$ref]', ref=toc_ref, namespaces=opf_namespaces),
         "Couldn't find item in manifest for toc reference {}"
         " in spine section.".format(toc_ref)
     )
@@ -139,8 +143,8 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
     )
     for ref in [toc_ref] + spine_refs:
         manifest_item = manifest.xpath(
-            './item[@id=$ref]',
-            ref=ref, smart_prefix=True
+            './opf:item[@id=$ref]',
+            ref=ref, namespaces=opf_namespaces
         )
         if not manifest_item:
             print(
@@ -156,7 +160,7 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
 
     context['spine'] = reorder(context['spine'], args.spine_order)
 
-    for manifest_item in manifest.xpath('./item', smart_prefix=True):
+    for manifest_item in manifest.xpath('./opf:item', namespaces=opf_namespaces):
         src, handlers = get_handlers(manifest_item, context)
         handlers_with_input.setdefault(handlers, []).append(src)
 
@@ -172,8 +176,8 @@ def make_webbook(epub_zip):
     with epub_zip.open('META-INF/container.xml') as container_xml:
         container_tree = etree.parse(container_xml)
         root_path = container_tree.xpath(
-            '//container/rootfiles/rootfile/@full-path',
-            smart_prefix=True)
+            '//ocf:container/ocf:rootfiles/ocf:rootfile/@full-path',
+            namespaces=ocf_namespace)
 
     root_path = ensure(
         root_path,
@@ -183,13 +187,16 @@ def make_webbook(epub_zip):
 
     with epub_zip.open(root_path) as package_xml:
         package_tree = etree.parse(package_xml)
-        metadata = package_tree.xpath('/package/metadata', smart_prefix=True)
-        manifest = package_tree.xpath('/package/manifest', smart_prefix=True)
+        metadata = package_tree.xpath('/opf:package/opf:metadata', namespaces=opf_namespaces)
+        manifest = package_tree.xpath('/opf:package/opf:manifest', namespaces=opf_namespaces)
         spine_refs = package_tree.xpath(
-            '/package/spine/itemref/@idref',
-            smart_prefix=True
+            '/opf:package/opf:spine/opf:itemref/@idref',
+            namespaces=opf_namespaces
         )
-        toc_ref = package_tree.xpath('/package/spine/@toc', smart_prefix=True)
+        toc_ref = package_tree.xpath(
+            '/opf:package/opf:spine/@toc',
+            namespaces=opf_namespaces
+        )
 
     metadata = ensure(metadata, "No metadata section found in EPUB package.")
     manifest = ensure(manifest, "No manifest section found in EPUB package.")
