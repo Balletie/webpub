@@ -30,7 +30,7 @@ def write_tree_out(input, filepath, routes):
         ))
 
 
-def copy_out(filepath, root_dir, routes):
+def copy_out(epub_zip, filepath, root_dir, routes):
     src_zip_path = os.path.join(root_dir, filepath)
     routed_path = os.path.join(args.output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
