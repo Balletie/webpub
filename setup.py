@@ -6,9 +6,11 @@ PACKAGE_NAME = "webpub"
 setup(
     name=PACKAGE_NAME,
     version="0.1",
-    scripts=["webpub.py"],
     packages=find_packages(),
     include_package_data=True,
+    entry_points={
+        'console_scripts': ['webpub = webpub:main'],
+    },
     install_requires=[
         'lxml',
         'inxs',

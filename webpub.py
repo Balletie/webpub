@@ -207,6 +207,9 @@ def make_webbook(epub_zip):
     }
     handle_all(spine_refs, toc_ref, manifest, metadata, context)
 
+def main():
+    with zf.ZipFile(args.epub_filename) as epub_zip:
+        make_webbook(epub_zip)
 
-with zf.ZipFile(args.epub_filename) as epub_zip:
-    make_webbook(epub_zip)
+if __name__ == '__main__':
+    main()
