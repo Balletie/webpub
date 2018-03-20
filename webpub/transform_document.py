@@ -2,9 +2,9 @@ import bisect
 import re
 import os.path
 
-from lxml import html
 import lxml.sax
 from xml.sax import ContentHandler
+import html5lib as html5
 
 from inxs import Rule, Any, MatchesAttributes, Transformation
 import inxs.lib
@@ -192,7 +192,7 @@ def transform_document(routes, spine, root_dir, epub_zip, filepath, toc_src,
 
     print("Transforming {}".format(filepath))
     with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
-        doc_tree = html.parse(doc_xml)
+        doc_tree = html5.parse(doc_xml, treebuilder='lxml', default_encoding='utf-8', namespaceHTMLElements=False)
 
     root = doc_tree.getroot()
     result = transformation(root)
