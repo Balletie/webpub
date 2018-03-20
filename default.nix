@@ -4,7 +4,7 @@ with (import ./python-env.nix { inherit pkgs; });
 
 with python.pkgs; buildPythonPackage rec {
   name = "webpub-${version}";
-  version = "0.1";
+  version = "1.0";
 
   src = ./.;
 

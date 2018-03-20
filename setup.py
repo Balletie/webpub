@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
 import os
+import webpub
 
 PACKAGE_NAME = "webpub"
 
 setup(
     name=PACKAGE_NAME,
-    version="0.1",
+    version=webpub.__version__,
     packages=find_packages(),
     include_package_data=True,
     entry_points={
