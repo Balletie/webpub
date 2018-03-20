@@ -2,7 +2,7 @@
 
 let pkg = import ./default.nix { inherit pkgs; };
     # pythonEnvPackages is defined in my nixpkgs config
-    envPkgs = pkgs.pythonEnvPackages or ps: [];
+    envPkgs = pkgs.pythonEnvPackages or (ps: []);
 in
 
 pkg.overrideAttrs(oldAttrs: {
