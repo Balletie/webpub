@@ -18,13 +18,14 @@ rec {
 
   inxs = with python.pkgs; buildPythonPackage rec {
     name = "inxs-${version}";
-    version = "0.1b1";
+    version = "0.1-rev-c4219d6";
 
     doCheck = false;
 
-    src = pkgs.fetchurl {
-      url = "mirror://pypi/i/inxs/${name}.tar.gz";
-      sha256 = "1fmvslf9s2qh1ji5qkrbpw3crh5raw4gzcmnhns3hnqxwsnhyl90";
+    src = pkgs.fetchgit {
+      url = "https://github.com/Balletie/inxs.git";
+      rev = "c4219d6a55c90996030b8c77c74639c2030d9cfe";
+      sha256 = "0s3m8ilxgimlxqkvx3ly7vkf8y8gjlc2pqp1gh7j2ll5ll1cd4rp";
     };
 
     patches = [ ./patches/0001-Specify-encoding-when-reading-README-and-HISTORY-fil.patch ];
