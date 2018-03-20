@@ -1,16 +1,10 @@
 { pkgs ? (import <nixpkgs> {} ) }:
 
-with (import ./python-env.nix { inherit pkgs; });
+let pkg = import ./default.nix { inherit pkgs; };
+    # pythonEnvPackages is defined in my nixpkgs config
+    envPkgs = pkgs.pythonEnvPackages or ps: [];
+in
 
-(python.withPackages (ps: [
-  #inxs
-  dependency_injection
-  ps.lxml
-  ps.python_mimeparse
-  ps.cssutils
-  ps.flake8
-  ps.pylint
-  ps.jedi
-  ps.epc
-  ps.pip
-])).env
+pkg.overrideAttrs(oldAttrs: {
+  propagatedBuildInputs = oldAttrs.propagatedBuildInputs ++ (envPkgs pkg.python.pkgs);
+})

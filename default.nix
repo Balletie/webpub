@@ -9,4 +9,8 @@ with python.pkgs; buildPythonPackage rec {
   src = ./.;
 
   propagatedBuildInputs = [ inxs dependency_injection lxml python_mimeparse cssutils ];
+
+  passthru = {
+    inherit python;
+  };
 }
