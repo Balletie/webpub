@@ -117,7 +117,8 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
         "Spine section in EPUB package does not have a 'toc' attribute"
     )
     toc_item = ensure(
-        manifest.xpath('./opf:item[@id=$ref]', ref=toc_ref, namespaces=opf_namespaces),
+        manifest.xpath('./opf:item[@id=$ref]', ref=toc_ref,
+                       namespaces=opf_namespaces),
         "Couldn't find item in manifest for toc reference {}"
         " in spine section.".format(toc_ref)
     )
@@ -160,7 +161,8 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
 
     context['spine'] = reorder(context['spine'], args.spine_order)
 
-    for manifest_item in manifest.xpath('./opf:item', namespaces=opf_namespaces):
+    for manifest_item in manifest.xpath('./opf:item',
+                                        namespaces=opf_namespaces):
         src, handlers = get_handlers(manifest_item, context)
         handlers_with_input.setdefault(handlers, []).append(src)
 
@@ -187,8 +189,14 @@ def make_webbook(epub_zip):
 
     with epub_zip.open(root_path) as package_xml:
         package_tree = etree.parse(package_xml)
-        metadata = package_tree.xpath('/opf:package/opf:metadata', namespaces=opf_namespaces)
-        manifest = package_tree.xpath('/opf:package/opf:manifest', namespaces=opf_namespaces)
+        metadata = package_tree.xpath(
+            '/opf:package/opf:metadata',
+            namespaces=opf_namespaces
+        )
+        manifest = package_tree.xpath(
+            '/opf:package/opf:manifest',
+            namespaces=opf_namespaces
+        )
         spine_refs = package_tree.xpath(
             '/opf:package/opf:spine/opf:itemref/@idref',
             namespaces=opf_namespaces
@@ -207,9 +215,11 @@ def make_webbook(epub_zip):
     }
     handle_all(spine_refs, toc_ref, manifest, metadata, context)
 
+
 def main():
     with zf.ZipFile(args.epub_filename) as epub_zip:
         make_webbook(epub_zip)
+
 
 if __name__ == '__main__':
     main()

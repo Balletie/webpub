@@ -120,7 +120,8 @@ class SuttaRefContentHandler(ContentHandler, object):
             url_format = sutta_abbrev_urls.get(section)
             if callable(url_format):
                 url = url_format(
-                    full_match=full_match, numeral=numeral, text=text, sep=sep, subsection=subsection
+                    full_match=full_match, numeral=numeral, text=text, sep=sep,
+                    subsection=subsection
                 )
             else:
                 url = url_format.format(
@@ -192,7 +193,10 @@ def transform_document(routes, spine, root_dir, epub_zip, filepath, toc_src,
 
     print("Transforming {}".format(filepath))
     with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
-        doc_tree = html5.parse(doc_xml, treebuilder='lxml', default_encoding='utf-8', namespaceHTMLElements=False)
+        doc_tree = html5.parse(
+            doc_xml, treebuilder='lxml',
+            default_encoding='utf-8', namespaceHTMLElements=False
+        )
 
     root = doc_tree.getroot()
     result = transformation(root)
