@@ -1,0 +1,37 @@
+# This is an example PKGBUILD file. Use this as a start to creating your own,
+# and remove these comments. For more information, see 'man PKGBUILD'.
+# NOTE: Please fill out the license field for your package! If it is unknown,
+# then please put 'unknown'.
+
+# See http://wiki.archlinux.org/index.php/Python_Package_Guidelines for more
+# information on Python packaging.
+
+# Maintainer: Your Name <youremail@domain.com>
+_repo_url="https://github.com/Balletie/webpub"
+pkgname=python-webpub
+pkgver=1.0
+pkgrel=1
+pkgdesc=""
+arch=('x86_64')
+url="$_repo_url"
+license=('unknown')
+groups=()
+depends=('python')
+makedepends=('python-pip')
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=(!emptydirs)
+install=
+source=("git+$_repo_url#branch=arch-pkg")
+md5sums=('SKIP')
+
+package() {
+  cd "$srcdir/webpub"
+  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps lxml cssselect cssutils dependency-injection python-mimeparse
+  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps git+https://github.com/Balletie/inxs.git
+  python setup.py install --root="$pkgdir/" --optimize=1
+}
+
+# vim:set ts=2 sw=2 et:
