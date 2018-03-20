@@ -43,7 +43,11 @@ dhp_last_text_numbers = [
 ]
 
 
-def dhp_reference(numeral, text, sep, subsection):
+def manual_insert(full_match, numeral, text, sep, subsection):
+    return input('Enter cross reference link to "{}": '.format(full_match))
+
+
+def dhp_reference(full_match, numeral, text, sep, subsection):
     text_num = int(text)
     chapter_num = bisect.bisect_left(dhp_last_text_numbers, text_num) + 1
 
@@ -64,11 +68,17 @@ sutta_abbrev_urls = {
     'Thig': '/suttas/KN/Thig/thig{subsection}{sep}{text}.html',
     'Ud': '/suttas/KN/Ud/ud{subsection}{sep}{text}.html',
     'Mv': '/vinaya/Mv/Mv{numeral}.html#pts{subsection}{sep}{text}',
+    'Cv': manual_insert,
+    'Pr': manual_insert,
+    'Pc': manual_insert,
+    'NP': manual_insert,
+    'Sg': manual_insert,
+    'Sk': manual_insert,
 }
 
 sutta_ref_regex_template = \
     r"(?P<section>{})\s?"\
-    r"(?P<numeral>[IXV])?[.:]?"\
+    r"(?P<numeral>[IXV]+)?[.:]?"\
     r"(?P<text_or_subsection>[0-9]+)[.:]?(?P<text>[0-9]+)?"\
     r"(?:[-–](?P<text_end>[0-9]+))?"  # Includes ranges of texts
 
@@ -110,7 +120,7 @@ class SuttaRefContentHandler(ContentHandler, object):
             url_format = sutta_abbrev_urls.get(section)
             if callable(url_format):
                 url = url_format(
-                    numeral=numeral, text=text, sep=sep, subsection=subsection
+                    full_match=full_match, numeral=numeral, text=text, sep=sep, subsection=subsection
                 )
             else:
                 url = url_format.format(
