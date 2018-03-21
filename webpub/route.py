@@ -16,6 +16,9 @@ def routed_url(filepath, routes, root_dir, old_url_str):
     url = urlparse(old_url_str)
     if is_relative(url):
         routed = get_route(routes, os.path.dirname(filepath), url.path)
+        if routed is None:
+            return old_url_str
+
         routed_cur_path = routes[filepath]
         rel_routed = os.path.relpath(routed, os.path.dirname(routed_cur_path))
         url_list = list(url)

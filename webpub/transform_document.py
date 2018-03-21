@@ -195,3 +195,26 @@ def transform_document(routes, root_dir, epub_zip, filepath):
 
     root = doc_tree.getroot()
     return transformation(root)
+
+
+def linkfix_document(routes, root_dir, filepath, curpath):
+    context = locals().copy()
+
+    transformation = Transformation(
+        Rule(
+            Any(MatchesAttributes({'href': None}),
+                MatchesAttributes({'src': None}),),
+            route_url,
+        ),
+        context=context,
+    )
+
+    print("Fixing links in {}".format(curpath))
+    with open(curpath) as doc:
+        doc_tree = html5.parse(
+            doc, treebuilder='lxml',
+            namespaceHTMLElements=False
+        )
+
+    root = doc_tree.getroot()
+    return transformation(root)

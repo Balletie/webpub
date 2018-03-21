@@ -10,7 +10,10 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     entry_points={
-        'console_scripts': ['webpub = webpub.cli:main'],
+        'console_scripts': [
+            'webpub = webpub.cli:main',
+            'webpub-linkfix = webpub.cli:linkfix',
+        ],
     },
     install_requires=[
         'lxml',

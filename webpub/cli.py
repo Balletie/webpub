@@ -8,10 +8,10 @@ import zipfile as zf
 
 import dependency_injection
 import mimeparse
-from lxml import etree
+from lxml import etree, html
 import click
 
-from webpub.transform_document import transform_document
+from webpub.transform_document import transform_document, linkfix_document
 from webpub.transform_toc import transform_toc
 from webpub.transform import render_template
 from webpub.css import replace_urls
@@ -277,6 +277,56 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
         context.params['toc_order'] = toc_order
     with zf.ZipFile(epub_filename) as epub_zip:
         make_webbook(context, epub_zip)
+
+
+@click.command()
+@click.option('--fallback-url', '-u', metavar="URL",
+              help="Test against this url if the internal link is not found"
+              " locally. If the url points to a resource (i.e. does not 404),"
+              " this link won't be fixed. Useful if you have a relative link"
+              " to a file on a server to which the given files are uploaded.")
+@click.option('--basedir', '-b', metavar="PATH", default='',
+              help="Base directory that all links share. All given files are"
+              " pretended to be in this non-existing subdirectory of the root"
+              " directory that they're in.")
+@click.option('--route', '-r', 'custom_routes', type=(str, str), multiple=True,
+              metavar="<PATH PATH> ...",
+              help="Specifies a custom route. Expects two arguments, and may"
+              " be used multiple times.")
+@click.option('--directory', '-d', 'output_dir', default="./",
+              type=click.Path(file_okay=False, dir_okay=True,
+                              writable=True, exists=True),
+              help="The output directory to save the files.")
+@click.option('--overwrite/--no-overwrite', '-f/ ', default=False,
+              help="Whether or not to overwrite the given files. If not, the"
+              " files are saved with a '.new' extension applied.")
+@click.argument('filenames', metavar='INFILE', nargs=-1, required=True,
+                type=click.Path(file_okay=True, dir_okay=False,
+                                readable=True, writable=True, exists=True))
+def linkfix(fallback_url, basedir, custom_routes, output_dir, overwrite,
+            filenames):
+    """Attempts to fix relative links among the given files.
+    """
+    routes = {}
+    root_dir = os.path.commonpath(filenames)
+    for name in filenames:
+        basename = os.path.basename(name)
+        routes[os.path.join(root_dir, os.path.join(basedir, basename))] = name
+    routes.update(dict(custom_routes))
+
+    for filepath, curpath in routes.items():
+        result = linkfix_document(routes, root_dir, filepath, curpath)
+
+        if not overwrite:
+            curpath = curpath + ".new"
+
+        with open(os.path.join(output_dir, curpath), 'wb') as dst:
+            dst.write(html.tostring(
+                result,
+                doctype='<!DOCTYPE html>',
+                encoding='utf-8',
+                pretty_print=True,
+            ))
 
 
 if __name__ == '__main__':
