@@ -1,24 +1,25 @@
 #!/usr/bin/env python
 from collections import OrderedDict
+import itertools as it
 import os
 import os.path
 import shutil
-import dependency_injection
-
-import mimeparse
-
-from lxml import etree, html
-
 import zipfile as zf
 
-from webpub.args import args, reorder
+import dependency_injection
+import mimeparse
+from lxml import etree, html
+import html5lib as html5
+import click
+
 from webpub.transform_document import transform_document
 from webpub.transform_toc import transform_toc
 from webpub.css import replace_urls
+from webpub.util import reorder
 
 
-def write_tree_out(input, filepath, routes):
-    routed_path = os.path.join(args.output_dir, routes[filepath])
+def write_tree_out(input, filepath, output_dir, routes):
+    routed_path = os.path.join(output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
@@ -30,9 +31,9 @@ def write_tree_out(input, filepath, routes):
         ))
 
 
-def copy_out(epub_zip, filepath, root_dir, routes):
+def copy_out(epub_zip, filepath, output_dir, root_dir, routes):
     src_zip_path = os.path.join(root_dir, filepath)
-    routed_path = os.path.join(args.output_dir, routes[filepath])
+    routed_path = os.path.join(output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with epub_zip.open(src_zip_path, 'r') as src:
@@ -40,8 +41,8 @@ def copy_out(epub_zip, filepath, root_dir, routes):
             shutil.copyfileobj(src, dst, 8192)
 
 
-def write_out(input, filepath, routes):
-    routed_path = os.path.join(args.output_dir, routes[filepath])
+def write_out(input, filepath, output_dir, routes):
+    routed_path = os.path.join(output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
@@ -138,10 +139,6 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
     context.setdefault('meta_title', meta_title[0] if meta_title else '')
     context.setdefault('meta_author', meta_author[0] if meta_author else '')
 
-    context.setdefault(
-        'template',
-        html.parse(args.template).getroot(),
-    )
     for ref in [toc_ref] + spine_refs:
         manifest_item = manifest.xpath(
             './opf:item[@id=$ref]',
@@ -159,7 +156,7 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
         handlers_with_input.setdefault(handlers, []).append(src)
         manifest.remove(manifest_item)
 
-    context['spine'] = reorder(context['spine'], args.spine_order)
+    context['spine'] = reorder(context['spine'], context['spine_order'])
 
     for manifest_item in manifest.xpath('./opf:item',
                                         namespaces=opf_namespaces):
@@ -173,7 +170,7 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
             apply_handlers(handlers, context)
 
 
-def make_webbook(epub_zip):
+def make_webbook(cli_context, epub_zip):
     root_path = None
     with epub_zip.open('META-INF/container.xml') as container_xml:
         container_tree = etree.parse(container_xml)
@@ -212,13 +209,86 @@ def make_webbook(epub_zip):
     context = {
         'root_dir': root_dir,
         'epub_zip': epub_zip,
+        'spine_order': cli_context.params['spine_order'],
+        'toc_order': cli_context.params['toc_order'],
+        'output_dir': cli_context.params['output_dir'],
     }
+    template = cli_context.params['template']
+    with open(template) as template_f:
+        context['template'] = html5.parse(
+            template_f, treebuilder='lxml',
+            namespaceHTMLElements=False
+        ).getroot()
     handle_all(spine_refs, toc_ref, manifest, metadata, context)
 
 
-def main():
-    with zf.ZipFile(args.epub_filename) as epub_zip:
-        make_webbook(epub_zip)
+class IntOrTocType(click.ParamType):
+    name = 'integer or "toc"'
+
+    def convert(self, value, param, ctx):
+        try:
+            i = int(value)
+        except ValueError:
+            if value == 'toc':
+                i = 0
+            else:
+                self.fail("Invalid argument, must be 'toc' or a"
+                          " number greater than 0")
+        else:
+            if i < 1:
+                self.fail("Numbers must be greater than 0")
+        return i
+
+
+def make_order(ctx, param, values):
+    filled_values = it.chain(
+        values[:],
+        (i for i in it.count(1) if i not in values)
+    )
+    return filled_values
+
+
+@click.command()
+@click.option('--directory', '-d', 'output_dir', metavar='DIR',
+              type=click.Path(dir_okay=True, file_okay=False, writable=True),
+              default='_result',
+              help="Output directory (defaults to ./_result/)")
+@click.option('--template', metavar='TEMPLATE',
+              type=click.Path(dir_okay=False, file_okay=True, readable=True),
+              default='./default_template.html',
+              help="The template HTML file in which the content is"
+              " inserted for each section.")
+@click.option('--spine-order', '-o', metavar='N', type=IntOrTocType(),
+              default=it.count(), multiple=True, callback=make_order,
+              help="Reorder the chapter order for next/previous buttons."
+              " Input is a sequence of one or more positive non-zero"
+              " numbers, or the special value 'toc'."
+              " (defaults to 'toc 1 2 3 ...')")
+@click.option('--toc-order', '-t', metavar='N', type=IntOrTocType(),
+              default=None, multiple=True, callback=make_order,
+              help="Reorder the order of the entries in the table of"
+              " contents. Input is a sequence of one or more positive"
+              " non-zero numbers, or the special value 'toc'."
+              " (defaults to --spine-order or 'toc 1 2 3 ...')")
+@click.argument('epub_filename', metavar='INFILE',
+                type=click.File('rb'),)  # help="The EPUB input file.")
+@click.pass_context
+def main(context, output_dir, template, spine_order, toc_order, epub_filename):
+    """Process EPUB documents for web publishing.
+
+    Given INFILE as input, this script:
+
+    \b
+    1. routes internal links
+    2. adds cross-references to suttas
+    3. generates a Table of Contents
+    """
+    if toc_order is None:
+        spine_order, toc_order = it.tee(spine_order)
+        context.params['spine_order'] = spine_order
+        context.params['toc_order'] = toc_order
+    with zf.ZipFile(epub_filename) as epub_zip:
+        make_webbook(context, epub_zip)
 
 
 if __name__ == '__main__':

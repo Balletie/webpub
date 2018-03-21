@@ -2,7 +2,7 @@ def insert_into_template(root, template):
     head = root.find('head')
     body = root.find('body')
     template_head = template.find('head')
-    template_content = template.get_element_by_id('content')
+    template_content = template.xpath('//*[@id="content"]')[0]
     template_head.extend(head.getchildren())
     template_content.extend(body.getchildren())
 
@@ -24,7 +24,8 @@ def insert_meta(template, section_title, meta_title, meta_author, elmaker):
 
 def insert_prev_next(template, routes, filepath, toc_src, spine, elmaker):
     spine_index = spine.index(filepath)
-    prev_src = spine[spine_index - 1] if spine_index > 0 else None
+    prev_src = None
+    # prev_src = spine[spine_index - 1] if spine_index > 0 else None
     next_src = spine[spine_index + 1] if spine_index < len(spine) - 1 else None
 
     container = elmaker.div(id="nextbutton")
@@ -51,5 +52,5 @@ def insert_prev_next(template, routes, filepath, toc_src, spine, elmaker):
             ),
             {'href': routes[next_src], 'class': "next"}
         ))
-    template_content = template.get_element_by_id('content')
+    template_content = template.xpath('//*[@id="content"]')[0]
     template_content.append(container)
