@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{section_title}} | {{meta_title}}</title>
+        {% if meta_author %}
+        <meta name="description" content="{{meta_title}} by {{meta_author}}"/>
+        <meta name="Author" content="{{meta_author}}" />
+        {% else %}
+        <meta name="description" content="{{meta_title}}"/>
+        {% endif %}
+        <!--#include virtual="/php/header.html" -->
+        {{ head }}
+    </head>
+    <body>
+    <div id="container">
+        <!--#include virtual="/php/banner-nav.html" -->
+
+        <div id="content">
+            {{body}}
+            <div id="nextbutton">
+                {% if next_url %}
+                <img src="/images/actions/go-next-button2.png" title="Next page" href="{{next_url}}" class="next"/>
+                {% endif %}
+                <img src="/images/actions/ToC_button.png" title="Table of Contents" href="{{toc_url}}" class="next"/>
+            </div>
+        </div><!--end:content-->
+        <!--#include virtual="/php/footer.html" -->
+
+    </div><!--end:container-->
+
+    <!--________ALL SCRIPTS BELOW HERE________-->
+
+    <!--#include virtual="/php/scripts.html" -->
+    </body>
+</html>

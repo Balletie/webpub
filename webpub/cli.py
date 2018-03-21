@@ -8,27 +8,14 @@ import zipfile as zf
 
 import dependency_injection
 import mimeparse
-from lxml import etree, html
-import html5lib as html5
+from lxml import etree
 import click
 
 from webpub.transform_document import transform_document
 from webpub.transform_toc import transform_toc
+from webpub.transform import render_template
 from webpub.css import replace_urls
 from webpub.util import reorder
-
-
-def write_tree_out(input, filepath, output_dir, routes):
-    routed_path = os.path.join(output_dir, routes[filepath])
-    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
-
-    with open(routed_path, 'wb') as dst:
-        dst.write(html.tostring(
-            input,
-            doctype='<!DOCTYPE html>',
-            encoding=input.docinfo.encoding,
-            pretty_print=True,
-        ))
 
 
 def copy_out(epub_zip, filepath, output_dir, root_dir, routes):
@@ -56,14 +43,18 @@ def ensure(result, error_message):
     return result[0]
 
 
+def ensure_html_extension(path):
+    return './' + os.path.basename(os.path.splitext(path)[0] + '.html')
+
+
 # Dict from mimetype media ranges to handlers and destination directory.
 default_handlers = {
-    'application/xhtml+xml': (lambda path: './' + os.path.basename(
-        os.path.splitext(path)[0] + '.html'
-    ),
-                              (transform_document, write_tree_out)),
+    'application/xhtml+xml': (ensure_html_extension,
+                              (transform_document, render_template,
+                               write_out)),
     'application/x-dtbncx+xml': (lambda _: './Contents.html',
-                                 (transform_toc, write_tree_out)),
+                                 (transform_toc, render_template,
+                                  write_out)),
     'text/css': ('./css/', (replace_urls, write_out)),
     'image/*': ('./img/', (copy_out,)),
     '*/*': ('./etc/', (copy_out,))
@@ -211,14 +202,9 @@ def make_webbook(cli_context, epub_zip):
         'epub_zip': epub_zip,
         'spine_order': cli_context.params['spine_order'],
         'toc_order': cli_context.params['toc_order'],
+        'template': cli_context.params['template'],
         'output_dir': cli_context.params['output_dir'],
     }
-    template = cli_context.params['template']
-    with open(template) as template_f:
-        context['template'] = html5.parse(
-            template_f, treebuilder='lxml',
-            namespaceHTMLElements=False
-        ).getroot()
     handle_all(spine_refs, toc_ref, manifest, metadata, context)
 
 
@@ -241,9 +227,11 @@ class IntOrTocType(click.ParamType):
 
 
 def make_order(ctx, param, values):
+    if len(values) == 0:
+        return None
     filled_values = it.chain(
         values[:],
-        (i for i in it.count(1) if i not in values)
+        (i for i in it.count() if i not in values)
     )
     return filled_values
 
@@ -255,7 +243,7 @@ def make_order(ctx, param, values):
               help="Output directory (defaults to ./_result/)")
 @click.option('--template', metavar='TEMPLATE',
               type=click.Path(dir_okay=False, file_okay=True, readable=True),
-              default='./default_template.html',
+              default='default_template.html',
               help="The template HTML file in which the content is"
               " inserted for each section.")
 @click.option('--spine-order', '-o', metavar='N', type=IntOrTocType(),
@@ -271,7 +259,7 @@ def make_order(ctx, param, values):
               " non-zero numbers, or the special value 'toc'."
               " (defaults to --spine-order or 'toc 1 2 3 ...')")
 @click.argument('epub_filename', metavar='INFILE',
-                type=click.File('rb'),)  # help="The EPUB input file.")
+                type=click.File('rb'))
 @click.pass_context
 def main(context, output_dir, template, spine_order, toc_order, epub_filename):
     """Process EPUB documents for web publishing.

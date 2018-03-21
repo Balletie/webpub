@@ -6,11 +6,9 @@ import lxml.sax
 from xml.sax import ContentHandler
 import html5lib as html5
 
-from inxs import Rule, Any, MatchesAttributes, Transformation
-import inxs.lib
+from inxs import lxml_utils, Rule, Any, MatchesAttributes, Transformation
 
 from .route import route_url
-from .transform import insert_into_template, insert_meta, insert_prev_next
 
 
 dhp_last_text_numbers = [
@@ -169,26 +167,23 @@ def link_sutta_references(context, root):
     root.replace(old_body, new_body)
 
 
-def transform_document(routes, spine, root_dir, epub_zip, filepath, toc_src,
-                       section_title, meta_title, meta_author, template):
+def remove_from_tree(element):
+    lxml_utils.remove_elements(element)
+
+
+def transform_document(routes, root_dir, epub_zip, filepath):
     context = locals().copy()
     context.pop('epub_zip', None)
 
     transformation = Transformation(
-        inxs.lib.init_elementmaker(
-            name='elmaker',
-        ),
+        Rule("title", remove_from_tree),
         Rule(
             Any(MatchesAttributes({'href': None}),
                 MatchesAttributes({'src': None}),),
             route_url,
         ),
         link_sutta_references,
-        insert_into_template,
-        insert_meta,
-        insert_prev_next,
         context=context,
-        result_object='context.template',
     )
 
     print("Transforming {}".format(filepath))
@@ -199,6 +194,4 @@ def transform_document(routes, spine, root_dir, epub_zip, filepath, toc_src,
         )
 
     root = doc_tree.getroot()
-    result = transformation(root)
-
-    return result.getroottree()
+    return transformation(root)

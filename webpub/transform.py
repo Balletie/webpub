@@ -1,56 +1,35 @@
-def insert_into_template(root, template):
-    head = root.find('head')
-    body = root.find('body')
-    template_head = template.find('head')
-    template_content = template.xpath('//*[@id="content"]')[0]
-    template_head.extend(head.getchildren())
-    template_content.extend(body.getchildren())
+import os
+from jinja2 import Environment, ChoiceLoader, PackageLoader, FileSystemLoader
+from lxml import etree
 
 
-def insert_meta(template, section_title, meta_title, meta_author, elmaker):
-    head = template.find('head')
-    title = head.find('title')
-    if title is not None:
-        head.remove(title)
-    title = meta_title
-    if section_title:
-        title = section_title + ' | ' + title
-    head.insert(0, elmaker.title(title))
-    author_suffix = (' by ' + meta_author) if meta_author else ''
-    head.insert(1, elmaker.meta(
-        name='description', content=meta_title + author_suffix
-    ))
+jinja2_env = Environment(
+    loader=ChoiceLoader([
+        FileSystemLoader(os.getcwd()),
+        PackageLoader('webpub'),
+    ]),
+)
 
 
-def insert_prev_next(template, routes, filepath, toc_src, spine, elmaker):
+def render_template(template, input, filepath, spine,
+                    routes, toc_src,
+                    section_title, meta_title, meta_author):
     spine_index = spine.index(filepath)
-    prev_src = None
-    # prev_src = spine[spine_index - 1] if spine_index > 0 else None
+    prev_src = spine[spine_index - 1] if spine_index > 0 else None
     next_src = spine[spine_index + 1] if spine_index < len(spine) - 1 else None
-
-    container = elmaker.div(id="nextbutton")
-    if prev_src:
-        container.append(elmaker.a(
-            elmaker.img(
-                src="/images/actions/go-next-button2.png",
-                title="Previous page"
-            ),
-            {'href': routes[prev_src], 'class': "next"}
-        ))
-    container.append(elmaker.a(
-        elmaker.img(
-            src="/images/actions/ToC_button.png",
-            title="Table of Contents"
-        ),
-        {'href': routes[toc_src], 'class': "next"}
-    ))
-    if next_src:
-        container.append(elmaker.a(
-            elmaker.img(
-                src="/images/actions/go-next-button2.png",
-                title="Next page"
-            ),
-            {'href': routes[next_src], 'class': "next"}
-        ))
-    template_content = template.xpath('//*[@id="content"]')[0]
-    template_content.append(container)
+    context = {
+        'prev_url': routes.get(prev_src, None) if prev_src else None,
+        'next_url': routes.get(next_src, None) if next_src else None,
+        'toc_url': routes.get(toc_src, None),
+        'src': filepath,
+        'meta_title': meta_title,
+        'meta_author': meta_author,
+        'section_title': section_title,
+    }
+    for tag in ('head', 'body'):
+        context[tag] = ''.join(
+            etree.tostring(el, encoding='unicode', pretty_print=True)
+            for el in input.find(tag).iterchildren()
+        )
+    template = jinja2_env.get_template(template)
+    return template.render(context).encode()
