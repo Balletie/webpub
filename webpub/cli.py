@@ -285,7 +285,7 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
               " locally. If the URL points to a resource (i.e. does not 404),"
               " this link won't be fixed. Useful if you have a relative link"
               " to a file on a server to which the given files are uploaded.")
-@click.option('--dry-run', '-n', default=False,
+@click.option('--dry-run', '-n', default=False, is_flag=True,
               help="Don't write anything, only show what would happen.")
 @click.option('--basedir', '-b', metavar="PATH", default='',
               help="Base directory that all links share. All given files are"
