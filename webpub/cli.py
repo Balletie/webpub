@@ -281,16 +281,16 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
 
 @click.command()
 @click.option('--fallback-url', '-u', metavar="URL",
-              help="Test against this url if the internal link is not found"
-              " locally. If the url points to a resource (i.e. does not 404),"
+              help="Test against this URL if the internal link is not found"
+              " locally. If the URL points to a resource (i.e. does not 404),"
               " this link won't be fixed. Useful if you have a relative link"
               " to a file on a server to which the given files are uploaded.")
 @click.option('--dry-run', '-n', default=False,
               help="Don't write anything, only show what would happen.")
 @click.option('--basedir', '-b', metavar="PATH", default='',
               help="Base directory that all links share. All given files are"
-              " pretended to be in this non-existing subdirectory of the root"
-              " directory that they're in.")
+              " pretended to be in this non-existing subdirectory of the common"
+              " root directory that they're in.")
 @click.option('--route', '-r', 'custom_routes', type=(str, str), multiple=True,
               metavar="<PATH PATH> ...",
               help="Specifies a custom route. Expects two arguments, and may"
@@ -309,17 +309,22 @@ def linkfix(fallback_url, dry_run, basedir, custom_routes, output_dir, overwrite
             filenames):
     """Attempts to fix relative links among the given files.
     """
+    if dry_run:
+        print("Dry run; no files will be written")
     routes = {}
+    filenames = [os.path.realpath(fname) for fname in filenames]
     root_dir = os.path.commonpath(filenames)
-    for name in filenames:
-        basename = os.path.basename(name)
-        routes[os.path.join(root_dir, os.path.join(basedir, basename))] = name
+    for fname in filenames:
+        basename = os.path.basename(fname)
+        old_path = os.path.join(root_dir, os.path.join(basedir, basename))
+        routes[old_path] = fname
     routes.update(dict(custom_routes))
 
     for filepath, curpath in routes.items():
         result = linkfix_document(
             routes, root_dir, filepath, curpath, fallback_url
         )
+
         if dry_run:
             continue
 

@@ -8,7 +8,9 @@ import html5lib as html5
 
 from inxs import lxml_utils, Rule, Any, MatchesAttributes, Transformation
 
-from .route import route_url
+from .route import (
+    route_url, check_and_fix_absolute, has_relative_url, has_absolute_url
+)
 
 
 dhp_last_text_numbers = [
@@ -171,17 +173,17 @@ def remove_from_tree(element):
     lxml_utils.remove_elements(element)
 
 
+has_link = Any(MatchesAttributes({'href': None}),
+               MatchesAttributes({'src': None}),)
+
+
 def transform_document(routes, root_dir, epub_zip, filepath):
     context = locals().copy()
     context.pop('epub_zip', None)
 
     transformation = Transformation(
         Rule("title", remove_from_tree),
-        Rule(
-            Any(MatchesAttributes({'href': None}),
-                MatchesAttributes({'src': None}),),
-            route_url,
-        ),
+        Rule(has_link, route_url),
         link_sutta_references,
         context=context,
     )
@@ -201,15 +203,12 @@ def linkfix_document(routes, root_dir, filepath, curpath, fallback_url):
     context = locals().copy()
 
     transformation = Transformation(
-        Rule(
-            Any(MatchesAttributes({'href': None}),
-                MatchesAttributes({'src': None}),),
-            route_url,
-        ),
+        Rule([has_link, has_relative_url], route_url),
+        Rule([has_link, has_absolute_url], check_and_fix_absolute),
         context=context,
     )
 
-    print("Fixing links in {}".format(curpath))
+    print("Fixing links in {}".format(os.path.relpath(curpath)))
     with open(curpath) as doc:
         doc_tree = html5.parse(
             doc, treebuilder='lxml',
