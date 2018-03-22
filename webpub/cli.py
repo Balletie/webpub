@@ -285,6 +285,8 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
               " locally. If the url points to a resource (i.e. does not 404),"
               " this link won't be fixed. Useful if you have a relative link"
               " to a file on a server to which the given files are uploaded.")
+@click.option('--check', '-c', default=False,
+              help="Don't fix anything, only perform checks.")
 @click.option('--basedir', '-b', metavar="PATH", default='',
               help="Base directory that all links share. All given files are"
               " pretended to be in this non-existing subdirectory of the root"
@@ -303,7 +305,7 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
 @click.argument('filenames', metavar='INFILE', nargs=-1, required=True,
                 type=click.Path(file_okay=True, dir_okay=False,
                                 readable=True, writable=True, exists=True))
-def linkfix(fallback_url, basedir, custom_routes, output_dir, overwrite,
+def linkfix(fallback_url, check, basedir, custom_routes, output_dir, overwrite,
             filenames):
     """Attempts to fix relative links among the given files.
     """
@@ -315,7 +317,11 @@ def linkfix(fallback_url, basedir, custom_routes, output_dir, overwrite,
     routes.update(dict(custom_routes))
 
     for filepath, curpath in routes.items():
-        result = linkfix_document(routes, root_dir, filepath, curpath)
+        result = linkfix_document(
+            routes, root_dir, filepath, curpath, fallback_url
+        )
+        if check:
+            continue
 
         if not overwrite:
             curpath = curpath + ".new"

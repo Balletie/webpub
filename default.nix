@@ -8,7 +8,7 @@ with python.pkgs; buildPythonPackage rec {
 
   src = ./.;
 
-  propagatedBuildInputs = [ inxs dependency_injection html5lib lxml jinja2 click python_mimeparse cssutils ];
+  propagatedBuildInputs = [ inxs dependency_injection requests html5lib lxml jinja2 click python_mimeparse cssutils ];
 
   passthru = {
     inherit python;

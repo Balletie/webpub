@@ -197,7 +197,7 @@ def transform_document(routes, root_dir, epub_zip, filepath):
     return transformation(root)
 
 
-def linkfix_document(routes, root_dir, filepath, curpath):
+def linkfix_document(routes, root_dir, filepath, curpath, fallback_url):
     context = locals().copy()
 
     transformation = Transformation(
