@@ -236,7 +236,14 @@ def make_order(ctx, param, values):
     return filled_values
 
 
-@click.command()
+webpub_epilog = """The --spine-order and --toc-order are specified multiple times to
+determine the order. For example, '-o 2 -o toc -o 1' first puts the
+second document, then the generated Table of Contents, then the first
+document. The order defaults to '-o toc -o 1 -o 2 ...'.
+"""
+
+
+@click.command(epilog=webpub_epilog)
 @click.option('--directory', '-d', 'output_dir', metavar='DIR',
               type=click.Path(dir_okay=True, file_okay=False, writable=True),
               default='_result',
@@ -248,16 +255,15 @@ def make_order(ctx, param, values):
               " inserted for each section.")
 @click.option('--spine-order', '-o', metavar='N', type=IntOrTocType(),
               default=it.count(), multiple=True, callback=make_order,
-              help="Reorder the chapter order for next/previous buttons."
-              " Input is a sequence of one or more positive non-zero"
-              " numbers, or the special value 'toc'."
-              " (defaults to 'toc 1 2 3 ...')")
+              help="Reorder the chapter order for next/previous"
+              " buttons. Input must be a positive number or the"
+              " value 'toc' (for 'table of contents').")
 @click.option('--toc-order', '-t', metavar='N', type=IntOrTocType(),
               default=None, multiple=True, callback=make_order,
               help="Reorder the order of the entries in the table of"
-              " contents. Input is a sequence of one or more positive"
-              " non-zero numbers, or the special value 'toc'."
-              " (defaults to --spine-order or 'toc 1 2 3 ...')")
+              " contents. Input is specified in the same way as with"
+              " --spine-order. The default value, if unspecified, is"
+              " inherited from --spine-order.")
 @click.argument('epub_filename', metavar='INFILE',
                 type=click.File('rb'))
 @click.pass_context
