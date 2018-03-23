@@ -257,7 +257,7 @@ templates_path = os.path.join(os.path.dirname(__file__), 'templates')
               " inserted for each section (defaults to"
               " {}/default_template.html).".format(templates_path))
 @click.option('--spine-order', '-o', metavar='N', type=IntOrTocType(),
-              default=it.count(), multiple=True, callback=make_order,
+              default=None, multiple=True, callback=make_order,
               help="Reorder the chapter order for next/previous"
               " buttons. Input must be a positive number or the"
               " value 'toc' (for 'table of contents').")
@@ -280,6 +280,8 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
     2. adds cross-references to suttas
     3. generates a Table of Contents
     """
+    if spine_order is None:
+        spine_order = it.count()
     if toc_order is None:
         spine_order, toc_order = it.tee(spine_order)
         context.params['spine_order'] = spine_order
