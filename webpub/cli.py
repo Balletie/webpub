@@ -242,6 +242,8 @@ second document, then the generated Table of Contents, then the first
 document. The order defaults to '-o toc -o 1 -o 2 ...'.
 """
 
+templates_path = os.path.join(os.path.dirname(__file__), 'templates')
+
 
 @click.command(epilog=webpub_epilog)
 @click.option('--directory', '-d', 'output_dir', metavar='DIR',
@@ -252,7 +254,8 @@ document. The order defaults to '-o toc -o 1 -o 2 ...'.
               type=click.Path(dir_okay=False, file_okay=True, readable=True),
               default='default_template.html',
               help="The template HTML file in which the content is"
-              " inserted for each section.")
+              " inserted for each section (defaults to"
+              " {}/default_template.html).".format(templates_path))
 @click.option('--spine-order', '-o', metavar='N', type=IntOrTocType(),
               default=it.count(), multiple=True, callback=make_order,
               help="Reorder the chapter order for next/previous"
