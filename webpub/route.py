@@ -115,7 +115,6 @@ def check_and_fix_absolute(element, fallback_url=None):
         return element
 
     if fallback_url is None:
-        print("No fallback URL, stopping.")
         return element
 
     fallback_url = urljoin(fallback_url, old_url.path)
