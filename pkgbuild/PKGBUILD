@@ -8,7 +8,7 @@
 
 # Maintainer: Your Name <youremail@domain.com>
 _repo_url="https://github.com/Balletie/webpub"
-pkgname=python-webpub
+pkgname=webpub
 pkgver=1.0
 pkgrel=1
 pkgdesc=""
