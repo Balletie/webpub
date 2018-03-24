@@ -12,7 +12,7 @@ setup(
     entry_points={
         'console_scripts': [
             'webpub = webpub.cli:main',
-            'webpub-linkfix = webpub.cli:linkfix',
+            'webpub-linkfix = webpub.cli:linkfix_cmd',
         ],
     },
     install_requires=[

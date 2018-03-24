@@ -5,6 +5,7 @@ import zipfile as zf
 
 import click
 
+from webpub import linkfix
 from webpub import epub
 
 
@@ -100,55 +101,27 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
               help="Don't write anything, only show what would happen.")
 @click.option('--basedir', '-b', metavar="PATH", default='',
               help="Base directory that all links share. All given files are"
-              " pretended to be in this non-existing subdirectory of the common"
-              " root directory that they're in.")
+              " pretended to be in this non-existing subdirectory of the"
+              " common root directory that they're in.")
 @click.option('--route', '-r', 'custom_routes', type=(str, str), multiple=True,
               metavar="<PATH PATH> ...",
               help="Specifies a custom route. Expects two arguments, and may"
               " be used multiple times.")
-@click.option('--directory', '-d', 'output_dir', default="./",
+@click.option('--directory', '-d', 'output_dir',
               type=click.Path(file_okay=False, dir_okay=True,
                               writable=True, exists=True),
               help="The output directory to save the files.")
 @click.option('--overwrite/--no-overwrite', '-f/ ', default=False,
-              help="Whether or not to overwrite the given files. If not, the"
-              " files are saved with a '.new' extension applied.")
+              help="Whether or not to overwrite existing files.")
 @click.argument('filenames', metavar='INFILE', nargs=-1, required=True,
                 type=click.Path(file_okay=True, dir_okay=False,
                                 readable=True, writable=True, exists=True))
-def linkfix(fallback_url, dry_run, basedir, custom_routes, output_dir, overwrite,
-            filenames):
+def linkfix_cmd(fallback_url, dry_run, basedir, custom_routes, output_dir,
+                overwrite, filenames):
     """Attempts to fix relative links among the given files.
     """
-    if dry_run:
-        print("Dry run; no files will be written")
-    routes = {}
-    filenames = [os.path.realpath(fname) for fname in filenames]
-    root_dir = os.path.commonpath(filenames)
-    for fname in filenames:
-        basename = os.path.basename(fname)
-        old_path = os.path.join(root_dir, os.path.join(basedir, basename))
-        routes[old_path] = fname
-    routes.update(dict(custom_routes))
-
-    for filepath, curpath in routes.items():
-        result = linkfix_document(
-            routes, root_dir, filepath, curpath, fallback_url
-        )
-
-        if dry_run:
-            continue
-
-        if not overwrite:
-            curpath = curpath + ".new"
-
-        with open(os.path.join(output_dir, curpath), 'wb') as dst:
-            dst.write(html.tostring(
-                result,
-                doctype='<!DOCTYPE html>',
-                encoding='utf-8',
-                pretty_print=True,
-            ))
+    linkfix.fixlinks(filenames, fallback_url, dry_run, basedir,
+                     custom_routes, output_dir, overwrite)
 
 
 if __name__ == '__main__':

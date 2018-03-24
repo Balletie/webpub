@@ -199,7 +199,7 @@ def transform_document(routes, root_dir, epub_zip, filepath):
     return transformation(root)
 
 
-def linkfix_document(routes, root_dir, filepath, curpath, fallback_url):
+def linkfix_document(routes, root_dir, filepath, fallback_url):
     context = locals().copy()
 
     transformation = Transformation(
@@ -208,6 +208,7 @@ def linkfix_document(routes, root_dir, filepath, curpath, fallback_url):
         context=context,
     )
 
+    curpath = routes[filepath]
     print("Fixing links in {}".format(os.path.relpath(curpath)))
     with open(curpath) as doc:
         doc_tree = html5.parse(
