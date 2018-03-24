@@ -1,12 +1,9 @@
 #!/usr/bin/env python
-from collections import OrderedDict
 import itertools as it
 import os
-import os.path
-import shutil
 import zipfile as zf
+import mimetypes
 
-import dependency_injection
 import mimeparse
 from lxml import etree, html
 import click
@@ -15,41 +12,48 @@ from webpub.transform_document import transform_document, linkfix_document
 from webpub.transform_toc import transform_toc
 from webpub.transform import render_template
 from webpub.css import replace_urls
-from webpub.util import reorder
+from webpub.util import reorder, ensure, copy_out, write_out
+from webpub.handlers import handle_routes
 
 
-def copy_out(epub_zip, filepath, output_dir, root_dir, routes):
-    src_zip_path = os.path.join(root_dir, filepath)
-    routed_path = os.path.join(output_dir, routes[filepath])
-    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
+class Route(object):
+    def __init__(self, src, mimetype=None):
+        self.src = src
+        self._mimetype = mimetype
 
-    with epub_zip.open(src_zip_path, 'r') as src:
-        with open(routed_path, 'wb') as dst:
-            shutil.copyfileobj(src, dst, 8192)
+    @property
+    def dst(self):
+        raise NotImplementedError()
 
+    @property
+    def handlers(self):
+        raise NotImplementedError()
 
-def write_out(input, filepath, output_dir, routes):
-    routed_path = os.path.join(output_dir, routes[filepath])
-    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
-
-    with open(routed_path, 'wb') as dst:
-        dst.write(input)
-
-
-def ensure(result, error_message):
-    if not result:
-        raise Exception(error_message)
-
-    return result[0]
+    @property
+    def mimetype(self):
+        return self._mimetype or mimetypes.guess_type(self.src)
 
 
-def ensure_html_extension(path):
+class IdentityRoute(Route):
+    def __init__(self, src, dst, mimetype=None):
+        super().__init__(src, mimetype)
+        self._dst = dst
+
+    @property
+    def dst(self):
+        return self._dst or os.path.basename(self.src)
+
+    def handlers(self):
+        return (copy_out,)
+
+
+def _ensure_html_extension(path):
     return './' + os.path.basename(os.path.splitext(path)[0] + '.html')
 
 
 # Dict from mimetype media ranges to handlers and destination directory.
-default_handlers = {
-    'application/xhtml+xml': (ensure_html_extension,
+default_mime_to_dst_and_handlers = {
+    'application/xhtml+xml': (_ensure_html_extension,
                               (transform_document, render_template,
                                write_out)),
     'application/x-dtbncx+xml': (lambda _: './Contents.html',
@@ -61,34 +65,29 @@ default_handlers = {
 }
 
 
-def apply_handlers(handlers, context):
-    print("Start handling {}.".format(context['filepath']))
-    for handler in handlers:
-        kwargs = dependency_injection.resolve_dependencies(
-            handler, context
-        ).as_kwargs
-        print(" - {}".format(handler.__name__))
-        context['input'] = handler(**kwargs)
+class MimetypeRoute(Route):
+    def get_mime_to_dst_and_handlers(self):
+        return default_mime_to_dst_and_handlers
 
+    def get_dst_and_handlers(self):
+        mimetype_handlers = self.get_mime_to_dst_and_handlers()
+        mime_match = mimeparse.best_match(
+            mimetype_handlers.keys(), self.mimetype
+        )
+        return mimetype_handlers[mime_match]
 
-def get_handlers(manifest_item, context, mimetype_handlers=default_handlers):
-    manifest_item_path = manifest_item.attrib["href"]
-    manifest_mime = manifest_item.attrib["media-type"]
-    mime_match = mimeparse.best_match(mimetype_handlers.keys(), manifest_mime)
+    @property
+    def dst(self):
+        dst, _handlers = self.get_dst_and_handlers()
 
-    dst, handlers = mimetype_handlers[mime_match]
-    if not callable(dst):
-        old_dst = dst
+        if callable(dst):
+            return dst(self.src)
+        return os.path.join(dst, os.path.basename(self.src))
 
-        def append_basename(path):
-            return os.path.join(old_dst, os.path.basename(path))
-
-        dst = append_basename
-
-    dst = dst(manifest_item_path)
-    context['routes'][manifest_item_path] = dst
-
-    return manifest_item_path, handlers
+    @property
+    def handlers(self):
+        _dst, handlers = self.get_dst_and_handlers()
+        return handlers
 
 
 ocf_namespace = {
@@ -101,24 +100,7 @@ opf_namespaces = {
 }
 
 
-def handle_all(spine_refs, toc_ref, manifest, metadata, context):
-    handlers_with_input = OrderedDict()
-
-    toc_ref = ensure(
-        toc_ref,
-        "Spine section in EPUB package does not have a 'toc' attribute"
-    )
-    toc_item = ensure(
-        manifest.xpath('./opf:item[@id=$ref]', ref=toc_ref,
-                       namespaces=opf_namespaces),
-        "Couldn't find item in manifest for toc reference {}"
-        " in spine section.".format(toc_ref)
-    )
-    toc_src = toc_item.attrib['href']
-    context.setdefault('src_to_title', {toc_src: 'Contents'})
-    context.setdefault('routes', {})
-    context.setdefault('spine', [])
-    context.setdefault('toc_src', toc_src)
+def add_metadata(context, metadata):
     meta_title = metadata.xpath(
         './dc:title/text()',
         namespaces=opf_namespaces
@@ -129,6 +111,36 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
     )
     context.setdefault('meta_title', meta_title[0] if meta_title else '')
     context.setdefault('meta_author', meta_author[0] if meta_author else '')
+
+
+def get_toc_item(spine, manifest):
+    toc_ref = ensure(
+        spine.xpath('./@toc', namespaces=opf_namespaces),
+        "Spine section in EPUB package does not have a 'toc' attribute"
+    )
+    toc_item = ensure(
+        manifest.xpath('./opf:item[@id=$ref]', ref=toc_ref,
+                       namespaces=opf_namespaces),
+        "Couldn't find item in manifest for toc reference {}"
+        " in spine section.".format(toc_ref)
+    )
+    return toc_item
+
+
+def epub_routes(manifest, spine, metadata, context):
+    spine_refs = spine.xpath(
+        './opf:itemref/@idref',
+        namespaces=opf_namespaces
+    )
+    toc_item = get_toc_item(spine, manifest)
+    toc_ref = toc_item.attrib['id']
+    toc_src = toc_item.attrib['href']
+    context.setdefault('src_to_title', {toc_src: 'Contents'})
+    context.setdefault('routes', {})
+    context.setdefault('spine', [])
+    context.setdefault('toc_src', toc_src)
+
+    add_metadata(context, metadata)
 
     for ref in [toc_ref] + spine_refs:
         manifest_item = manifest.xpath(
@@ -142,23 +154,22 @@ def handle_all(spine_refs, toc_ref, manifest, metadata, context):
             )
             continue
         manifest_item = manifest_item[0]
-        src, handlers = get_handlers(manifest_item, context)
-        context['spine'].append(src)
-        handlers_with_input.setdefault(handlers, []).append(src)
+        route = MimetypeRoute(
+            manifest_item.attrib['href'],
+            manifest_item.attrib['media-type']
+        )
+        yield route
+        context['spine'].append(route.src)
         manifest.remove(manifest_item)
 
     context['spine'] = reorder(context['spine'], context['spine_order'])
 
-    for manifest_item in manifest.xpath('./opf:item',
-                                        namespaces=opf_namespaces):
-        src, handlers = get_handlers(manifest_item, context)
-        handlers_with_input.setdefault(handlers, []).append(src)
-
-    for handlers, srcs in handlers_with_input.items():
-        for src in srcs:
-            context['filepath'] = src
-            context['section_title'] = context['src_to_title'].get(src, '')
-            apply_handlers(handlers, context)
+    remaining_items = manifest.xpath('./opf:item', namespaces=opf_namespaces)
+    for manifest_item in remaining_items:
+        yield MimetypeRoute(
+            manifest_item.attrib['href'],
+            manifest_item.attrib['media-type']
+        )
 
 
 def make_webbook(cli_context, epub_zip):
@@ -185,17 +196,14 @@ def make_webbook(cli_context, epub_zip):
             '/opf:package/opf:manifest',
             namespaces=opf_namespaces
         )
-        spine_refs = package_tree.xpath(
-            '/opf:package/opf:spine/opf:itemref/@idref',
-            namespaces=opf_namespaces
-        )
-        toc_ref = package_tree.xpath(
-            '/opf:package/opf:spine/@toc',
+        spine = package_tree.xpath(
+            '/opf:package/opf:spine',
             namespaces=opf_namespaces
         )
 
     metadata = ensure(metadata, "No metadata section found in EPUB package.")
     manifest = ensure(manifest, "No manifest section found in EPUB package.")
+    spine = ensure(spine, "No spine section found in EPUB package.")
 
     context = {
         'root_dir': root_dir,
@@ -205,7 +213,8 @@ def make_webbook(cli_context, epub_zip):
         'template': cli_context.params['template'],
         'output_dir': cli_context.params['output_dir'],
     }
-    handle_all(spine_refs, toc_ref, manifest, metadata, context)
+    routes = epub_routes(manifest, spine, metadata, context)
+    handle_routes(routes, context)
 
 
 class IntOrTocType(click.ParamType):

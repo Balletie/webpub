@@ -1,4 +1,24 @@
+import os
+import shutil
 import itertools as it
+
+
+def copy_out(epub_zip, filepath, output_dir, root_dir, routes):
+    src_zip_path = os.path.join(root_dir, filepath)
+    routed_path = os.path.join(output_dir, routes[filepath])
+    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
+
+    with epub_zip.open(src_zip_path, 'r') as src:
+        with open(routed_path, 'wb') as dst:
+            shutil.copyfileobj(src, dst, 8192)
+
+
+def write_out(input, filepath, output_dir, routes):
+    routed_path = os.path.join(output_dir, routes[filepath])
+    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
+
+    with open(routed_path, 'wb') as dst:
+        dst.write(input)
 
 
 def reorder(entries, order):
@@ -11,3 +31,10 @@ def reorder(entries, order):
                 " can be used.".format(i, len(entries) - 1)
             )
     return [entries[i] for i in entries_order]
+
+
+def ensure(result, error_message):
+    if not result:
+        raise Exception(error_message)
+
+    return result[0]
