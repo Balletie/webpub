@@ -12,7 +12,6 @@ def tostring(input):
         input,
         doctype='<!DOCTYPE html>',
         encoding='unicode',
-        pretty_print=True,
     ).encode()
 
 

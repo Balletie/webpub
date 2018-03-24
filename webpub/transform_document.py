@@ -2,7 +2,9 @@ import os.path
 
 import html5lib as html5
 import requests
-from inxs import lxml_utils, Rule, Any, MatchesAttributes, MatchesXPath, Transformation
+from inxs import (
+    lxml_utils, Rule, Any, MatchesAttributes, MatchesXPath, Transformation
+)
 
 from .sutta_ref import link_sutta_references, sutta_ref_xpath, add_re_namespace
 from .route import (
