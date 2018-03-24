@@ -1,4 +1,4 @@
-import os.path
+import os
 
 import html5lib as html5
 import requests

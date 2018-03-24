@@ -80,6 +80,23 @@ def list_contents(previous_result, contents_div, elmaker):
     contents_div.extend(toc_tree_to_html(previous_result, elmaker))
 
 
+def indent(contents_div, level=0):
+    elem = contents_div
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
+
 def transform_toc(routes, toc_order, src_to_title, root_dir, epub_zip,
                   section_title, filepath):
     context = locals().copy()
@@ -99,6 +116,7 @@ def transform_toc(routes, toc_order, src_to_title, root_dir, epub_zip,
         ),
         make_toc,
         list_contents,
+        indent,
         result_object='context.html',
         context=context
     )
