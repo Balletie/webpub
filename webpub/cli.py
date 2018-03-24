@@ -5,9 +5,6 @@ import zipfile as zf
 
 import click
 
-from webpub import linkfix
-from webpub import epub
-
 
 class IntOrTocType(click.ParamType):
     name = 'integer or "toc"'
@@ -81,6 +78,7 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
     2. adds cross-references to suttas
     3. generates a Table of Contents
     """
+    import webpub.epub
     if spine_order is None:
         spine_order = it.count()
     if toc_order is None:
@@ -88,7 +86,24 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
         context.params['spine_order'] = spine_order
         context.params['toc_order'] = toc_order
     with zf.ZipFile(epub_filename) as epub_zip:
-        epub.make_webbook(context, epub_zip)
+        webpub.epub.make_webbook(context, epub_zip)
+
+
+def linkfix_crossref_common_options(f):
+    f = click.option('--dry-run', '-n', default=False, is_flag=True,
+                     help="Don't write anything, only show what would"
+                     " happen.")(f)
+    f = click.option('--directory', '-d', 'output_dir',
+                     type=click.Path(file_okay=False, dir_okay=True,
+                                     writable=True, exists=True),
+                     help="The output directory to save the files.")(f)
+    f = click.option('--overwrite/--no-overwrite', '-f/ ', default=False,
+                     help="Whether or not to overwrite existing files.")(f)
+    f = click.argument('filenames', metavar='INFILE', nargs=-1, required=True,
+                       type=click.Path(file_okay=True, dir_okay=False,
+                                       readable=True, writable=True,
+                                       exists=True))(f)
+    return f
 
 
 @click.command()
@@ -97,8 +112,6 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
               " locally. If the URL points to a resource (i.e. does not 404),"
               " this link won't be fixed. Useful if you have a relative link"
               " to a file on a server to which the given files are uploaded.")
-@click.option('--dry-run', '-n', default=False, is_flag=True,
-              help="Don't write anything, only show what would happen.")
 @click.option('--basedir', '-b', metavar="PATH", default='',
               help="Base directory that all links share. All given files are"
               " pretended to be in this non-existing subdirectory of the"
@@ -107,21 +120,24 @@ def main(context, output_dir, template, spine_order, toc_order, epub_filename):
               metavar="<PATH PATH> ...",
               help="Specifies a custom route. Expects two arguments, and may"
               " be used multiple times.")
-@click.option('--directory', '-d', 'output_dir',
-              type=click.Path(file_okay=False, dir_okay=True,
-                              writable=True, exists=True),
-              help="The output directory to save the files.")
-@click.option('--overwrite/--no-overwrite', '-f/ ', default=False,
-              help="Whether or not to overwrite existing files.")
-@click.argument('filenames', metavar='INFILE', nargs=-1, required=True,
-                type=click.Path(file_okay=True, dir_okay=False,
-                                readable=True, writable=True, exists=True))
-def linkfix_cmd(fallback_url, dry_run, basedir, custom_routes, output_dir,
+@linkfix_crossref_common_options
+def linkfix_cmd(fallback_url, basedir, custom_routes, dry_run, output_dir,
                 overwrite, filenames):
     """Attempts to fix relative links among the given files.
     """
-    linkfix.fixlinks(filenames, fallback_url, dry_run, basedir,
-                     custom_routes, output_dir, overwrite)
+    import webpub.linkfix
+    webpub.linkfix.fixlinks(filenames, fallback_url, dry_run, basedir,
+                            custom_routes, output_dir, overwrite)
+
+
+@click.command()
+@linkfix_crossref_common_options
+def sutta_cross_ref_cmd(dry_run, output_dir, overwrite, filenames):
+    """Creates cross-references to suttas. Leaves existing references
+    intact. Only affects HTML files.
+    """
+    import webpub.sutta_ref
+    webpub.sutta_ref.cross_ref(filenames, dry_run, output_dir, overwrite)
 
 
 if __name__ == '__main__':

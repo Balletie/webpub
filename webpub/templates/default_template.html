@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>{{section_title}} | {{meta_title}}</title>
+        <title>{{section_title|e}} | {{meta_title|e}}</title>
         {% if meta_author %}
-        <meta name="description" content="{{meta_title}} by {{meta_author}}"/>
-        <meta name="Author" content="{{meta_author}}" />
+        <meta name="description" content="{{meta_title|e}} by {{meta_author|e}}"/>
+        <meta name="Author" content="{{meta_author|e}}" />
         {% else %}
-        <meta name="description" content="{{meta_title}}"/>
+        <meta name="description" content="{{meta_title|e}}"/>
         {% endif %}
         <!--#include virtual="/php/header.html" -->
         {{ head }}

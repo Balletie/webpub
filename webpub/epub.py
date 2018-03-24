@@ -2,8 +2,12 @@ import os
 
 from lxml import etree
 
+from webpub.transform_document import transform_document
+from webpub.transform_toc import transform_toc
+from webpub.transform import render_template
+from webpub.css import replace_urls
 from webpub.handlers import handle_routes, MimetypeRoute
-from webpub.util import reorder, ensure
+from webpub.util import reorder, ensure, copy_out, write_out
 
 
 ocf_namespace = {
@@ -43,6 +47,30 @@ def get_toc_item(spine, manifest):
     return toc_item
 
 
+def _ensure_html_extension(path):
+    return './' + os.path.basename(os.path.splitext(path)[0] + '.html')
+
+
+# Dict from mimetype media ranges to handlers and destination directory.
+default_mime_to_dst_and_handlers = {
+    'text/html': (_ensure_html_extension,
+                  (transform_document, render_template,
+                   write_out)),
+    'application/xhtml+xml': 'text/html',
+    'application/x-dtbncx+xml': (lambda _: './Contents.html',
+                                 (transform_toc, render_template,
+                                  write_out)),
+    'text/css': ('./css/', (replace_urls, write_out)),
+    'image/*': ('./img/', (copy_out,)),
+    '*/*': ('./etc/', (copy_out,))
+}
+
+
+class EpubMimetypeRoute(MimetypeRoute):
+    def get_mime_to_handlers(self):
+        return default_mime_to_dst_and_handlers
+
+
 def epub_routes(manifest, spine, metadata, context):
     spine_refs = spine.xpath(
         './opf:itemref/@idref',
@@ -70,7 +98,7 @@ def epub_routes(manifest, spine, metadata, context):
             )
             continue
         manifest_item = manifest_item[0]
-        route = MimetypeRoute(
+        route = EpubMimetypeRoute(
             manifest_item.attrib['href'],
             manifest_item.attrib['media-type']
         )
@@ -82,7 +110,7 @@ def epub_routes(manifest, spine, metadata, context):
 
     remaining_items = manifest.xpath('./opf:item', namespaces=opf_namespaces)
     for manifest_item in remaining_items:
-        yield MimetypeRoute(
+        yield EpubMimetypeRoute(
             manifest_item.attrib['href'],
             manifest_item.attrib['media-type']
         )

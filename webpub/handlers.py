@@ -4,10 +4,6 @@ import mimetypes
 import mimeparse
 import os
 
-from webpub.transform_document import transform_document
-from webpub.transform_toc import transform_toc
-from webpub.transform import render_template
-from webpub.css import replace_urls
 from webpub.util import copy_out, write_out
 
 
@@ -42,28 +38,9 @@ class IdentityRoute(Route):
         return (copy_out,)
 
 
-def _ensure_html_extension(path):
-    return './' + os.path.basename(os.path.splitext(path)[0] + '.html')
-
-
-# Dict from mimetype media ranges to handlers and destination directory.
-default_mime_to_dst_and_handlers = {
-    'text/html': (_ensure_html_extension,
-                  (transform_document, render_template,
-                   write_out)),
-    'application/xhtml+xml': 'text/html',
-    'application/x-dtbncx+xml': (lambda _: './Contents.html',
-                                 (transform_toc, render_template,
-                                  write_out)),
-    'text/css': ('./css/', (replace_urls, write_out)),
-    'image/*': ('./img/', (copy_out,)),
-    '*/*': ('./etc/', (copy_out,))
-}
-
-
 class MimetypeRoute(Route):
     def get_mime_to_handlers(self):
-        return default_mime_to_dst_and_handlers
+        raise NotImplementedError()
 
     def get_handlers(self):
         mimetype_handlers = self.get_mime_to_handlers()
@@ -87,6 +64,20 @@ class MimetypeRoute(Route):
     def handlers(self):
         _dst, handlers = self.get_handlers()
         return handlers
+
+
+class ConstDestMimetypeRoute(MimetypeRoute):
+    def __init__(self, src, dst, mimetype=None):
+        super().__init__(src, mimetype)
+        self._dst = dst
+
+    @property
+    def dst(self):
+        return self._dst
+
+    @property
+    def handlers(self):
+        return self.get_handlers()
 
 
 class AbortHandling(Exception):

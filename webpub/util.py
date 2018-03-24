@@ -2,6 +2,33 @@ import os
 import shutil
 import itertools as it
 
+from lxml import html
+
+import webpub
+
+
+def tostring(input):
+    return html.tostring(
+        input,
+        doctype='<!DOCTYPE html>',
+        encoding='unicode',
+        pretty_print=True,
+    ).encode()
+
+
+def guard_dry_run(input, dry_run):
+    if dry_run:
+        raise webpub.handlers.AbortHandling("Dry run, aborting.")
+
+    return input
+
+
+def guard_overwrite(input, filepath, overwrite):
+    if not overwrite and os.path.exists(filepath):
+        raise webpub.handlers.AbortHandling("Overwriting disabled.")
+
+    return input
+
 
 def copy_out(epub_zip, filepath, output_dir, root_dir, routes):
     src_zip_path = os.path.join(root_dir, filepath)

@@ -13,6 +13,7 @@ setup(
         'console_scripts': [
             'webpub = webpub.cli:main',
             'webpub-linkfix = webpub.cli:linkfix_cmd',
+            'webpub-suttaref = webpub.cli:sutta_cross_ref_cmd',
         ],
     },
     install_requires=[
