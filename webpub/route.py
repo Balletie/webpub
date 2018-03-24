@@ -102,7 +102,7 @@ link_choices = {
 }
 
 
-def check_and_fix_absolute(element, fallback_url=None):
+def check_and_fix_absolute(element, session, fallback_url=None):
     old_url = None
     try:
         attrib, old_url = _matched_url(element)
@@ -119,7 +119,7 @@ def check_and_fix_absolute(element, fallback_url=None):
 
     fallback_url = urljoin(fallback_url, old_url.path)
     print("Checking link: {}".format(fallback_url))
-    response = requests.head(fallback_url, allow_redirects=True)
+    response = session.head(fallback_url, allow_redirects=True)
     if response.status_code == requests.codes.ok:
         return element
 

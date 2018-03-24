@@ -5,7 +5,7 @@ import os.path
 import lxml.sax
 from xml.sax import ContentHandler
 import html5lib as html5
-
+import requests
 from inxs import lxml_utils, Rule, Any, MatchesAttributes, Transformation
 
 from .route import (
@@ -217,4 +217,5 @@ def linkfix_document(routes, root_dir, filepath, fallback_url):
         )
 
     root = doc_tree.getroot()
-    return transformation(root)
+    with requests.Session() as s:
+        return transformation(root, session=s)
