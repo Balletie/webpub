@@ -18,7 +18,10 @@ setup(
     },
     install_requires=[
         'lxml',
+        'html5lib',
         'inxs',
+        'click',
+        'jinja2',
         'cssutils',
         'dependency-injection',
         'python-mimeparse',

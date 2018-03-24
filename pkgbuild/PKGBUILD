@@ -24,12 +24,12 @@ replaces=()
 backup=()
 options=(!emptydirs)
 install=
-source=("git+$_repo_url#branch=arch-pkg")
+source=("git+$_repo_url")
 md5sums=('SKIP')
 
 package() {
   cd "$srcdir/webpub"
-  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps lxml cssselect cssutils dependency-injection python-mimeparse
+  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps lxml html5lib webencodings requests chardet certifi idna urllib3 cssselect cssutils click jinja2 MarkupSafe dependency-injection python-mimeparse
   PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps git+https://github.com/Balletie/inxs.git
   python setup.py install --root="$pkgdir/" --optimize=1
 }
