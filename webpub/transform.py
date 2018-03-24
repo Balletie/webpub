@@ -28,7 +28,7 @@ def render_template(template, input, filepath, spine,
     }
     for tag in ('head', 'body'):
         context[tag] = ''.join(
-            html.tostring(el, encoding='unicode', pretty_print=True)
+            html.tostring(el, encoding='unicode')
             for el in input.find(tag).iterchildren()
         )
     template = jinja2_env.get_template(template)
