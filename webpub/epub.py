@@ -79,7 +79,7 @@ def epub_routes(manifest, spine, metadata, context):
     toc_item = get_toc_item(spine, manifest)
     toc_ref = toc_item.attrib['id']
     toc_src = toc_item.attrib['href']
-    context.setdefault('src_to_title', {toc_src: 'Contents'})
+    context.setdefault('src_to_title', {})[toc_src] = 'Contents'
     context.setdefault('routes', {})
     context.setdefault('spine', [])
     context.setdefault('toc_src', toc_src)
