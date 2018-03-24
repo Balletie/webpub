@@ -96,7 +96,7 @@ def _insert_new(element, attrib, context):
 
 def _apply_to_all(element, attrib, context):
     context.apply_to_all = True
-    prev_action = link_choices.get(context.choice, _ignore)
+    prev_action = link_choices.get(context.choice, ('',_ignore))
     return prev_action[1](element, attrib, context)
 
 
@@ -141,7 +141,7 @@ def check_and_fix_absolute(element, session, context, fallback_url=None):
             'Broken link, what should I do? ({})'.format(choices_prompt),
             default=default, type=choice,
         )
-    res = link_choices.get(value, _ignore)[1](element, attrib, context)
+    res = link_choices.get(value, ('',_ignore))[1](element, attrib, context)
     if not context.apply_to_all:
         context.choice = value
     return res
