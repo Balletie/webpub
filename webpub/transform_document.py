@@ -201,6 +201,8 @@ def transform_document(routes, root_dir, epub_zip, filepath):
 
 def linkfix_document(routes, root_dir, filepath, fallback_url):
     context = locals().copy()
+    context['apply_to_all'] = False
+    context['choice'] = None
 
     transformation = Transformation(
         Rule([has_link, has_relative_url], route_url),

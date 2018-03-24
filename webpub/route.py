@@ -41,7 +41,6 @@ def is_fallback_working(url, root_dir, routed_cur_path, fallback_base_url):
 
 def get_route(routes, filedir, path):
     path = os.path.normpath(os.path.join(filedir, path))
-
     return routes.get(path)
 
 
@@ -78,31 +77,38 @@ def _matched_url(element):
         raise ValueError("No URL attribute found on element")
 
 
-def _ignore(element, attrib):
+def _ignore(element, attrib, context):
     return element
 
 
-def _remove(element, attrib):
+def _remove(element, attrib, context):
     inxs.lxml_utils.remove_elements(
         element, keep_children=True, preserve_text=True, preserve_tail=True
     )
     return element
 
 
-def _insert_new(element, attrib):
+def _insert_new(element, attrib, context):
     new_url = click.prompt('Enter new link')
     element[attrib] = new_url
     return element
+
+
+def _apply_to_all(element, attrib, context):
+    context.apply_to_all = True
+    prev_action = link_choices.get(context.choice, _ignore)
+    return prev_action[1](element, attrib, context)
 
 
 link_choices = {
     '1': ('ignore', _ignore),
     '2': ('remove link', _remove),
     '3': ('insert new link', _insert_new),
+    'a': ('apply to all', _apply_to_all),
 }
 
 
-def check_and_fix_absolute(element, session, fallback_url=None):
+def check_and_fix_absolute(element, session, context, fallback_url=None):
     old_url = None
     try:
         attrib, old_url = _matched_url(element)
@@ -128,11 +134,17 @@ def check_and_fix_absolute(element, session, fallback_url=None):
         k + ': ' + v for k, (v, _) in link_choices.items()
     )
 
-    value = click.prompt(
-        'Broken link, what should I do? ({})'.format(choices_prompt),
-        default='1', type=choice,
-    )
-    return link_choices.get(value, _ignore)[1](element, attrib)
+    default = context.choice or '1'
+    value = default
+    if not context.apply_to_all:
+        value = click.prompt(
+            'Broken link, what should I do? ({})'.format(choices_prompt),
+            default=default, type=choice,
+        )
+    res = link_choices.get(value, _ignore)[1](element, attrib, context)
+    if not context.apply_to_all:
+        context.choice = value
+    return res
 
 
 def has_relative_url(element, transformation):
