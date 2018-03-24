@@ -90,7 +90,7 @@ def _remove(element, attrib, context):
 
 def _insert_new(element, attrib, context):
     new_url = click.prompt('Enter new link')
-    element[attrib] = new_url
+    element.attrib[attrib] = new_url
     return element
 
 
