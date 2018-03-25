@@ -32,7 +32,6 @@ def transform_document(routes, root_dir, epub_zip, filepath):
         context=context,
     )
 
-    print("Transforming {}".format(filepath))
     with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
         doc_tree = html5.parse(
             doc_xml, treebuilder='lxml',
@@ -46,7 +45,9 @@ def transform_document(routes, root_dir, epub_zip, filepath):
 transform_document.verbose_name = "Apply transformations"
 
 
-def linkfix_document(routes, root_dir, filepath, fallback_url):
+def linkfix_document(routes, root_dir, filepath, verbosity,
+                     currentpath, fallback_url):
+    currentpath = routes[filepath]
     context = locals().copy()
     context['apply_to_all'] = False
     context['choice'] = None
@@ -57,9 +58,7 @@ def linkfix_document(routes, root_dir, filepath, fallback_url):
         context=context,
     )
 
-    curpath = routes[filepath]
-    print("Fixing links in {}".format(os.path.relpath(curpath)))
-    with open(curpath) as doc:
+    with open(currentpath) as doc:
         doc_tree = html5.parse(
             doc, treebuilder='lxml',
             namespaceHTMLElements=False

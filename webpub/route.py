@@ -6,6 +6,8 @@ import click
 
 import inxs.lxml_utils
 
+import webpub.util
+
 
 def _ensure_url(f):
     @ft.wraps(f)
@@ -45,7 +47,7 @@ def get_route(routes, filedir, path):
     return routes.get(path)
 
 
-def routed_url(filepath, routes, root_dir, old_url_str, fallback_url=None):
+def routed_url(filepath, routes, root_dir, v, old_url_str, fallback_url=None):
     url = urlparse(old_url_str)
     if is_relative(url):
         routed = get_route(routes, os.path.dirname(filepath), url.path)
@@ -63,7 +65,10 @@ def routed_url(filepath, routes, root_dir, old_url_str, fallback_url=None):
         url_list = list(url)
         url_list[2] = rel_routed
         new_url_str = urlunparse(url_list)
-        print("Routed {} to {}.".format(old_url_str, new_url_str))
+        webpub.util.echo(
+            "Routed {} to {}.".format(old_url_str, new_url_str),
+            v, 2
+        )
         return new_url_str
     return old_url_str
 
@@ -131,7 +136,8 @@ def choice_prompt(prompt, apply_all_msg, choices, element, attrib, context,
     return res
 
 
-def check_and_fix_absolute(element, session, context, fallback_url=None):
+def check_and_fix_absolute(element, session, context, verbosity,
+                           currentpath, fallback_url=None):
     old_url = None
     try:
         attrib, old_url = _matched_url(element)
@@ -141,30 +147,44 @@ def check_and_fix_absolute(element, session, context, fallback_url=None):
     if not is_absolute(old_url):
         return element
 
-    prompt = "Broken link, what should I do?"
+    message = "In file {}:\nBroken link".format(os.path.relpath(currentpath))
     while element is not None:
         old_url = element.attrib[attrib]
         old_url = urlparse(old_url)
+
+        link = fallback_url
 
         if fallback_url is None:
             return element
         elif is_path(fallback_url):
             new_path = os.path.normpath(fallback_url + old_url.path)
-            print("Checking link: {}".format(new_path))
+            webpub.util.echo(
+                "Checking link: {}".format(new_path),
+                verbosity, 2
+            )
             if os.path.exists(new_path):
                 return element
+            link = new_path
         else:
             check_url = urljoin(fallback_url, old_url.path)
-            print("Checking link: {}".format(check_url))
+            webpub.util.echo(
+                "Checking link: {}".format(check_url),
+                verbosity, 2
+            )
             response = session.head(check_url, allow_redirects=True)
             if response.status_code == requests.codes.ok:
                 return element
+            link = check_url
 
+        webpub.util.echo(
+            "\n{}: {}\n".format(message, link),
+            verbosity
+        )
         element = choice_prompt(
-            prompt, "Broken link, ",
+            "Link is broken, what should I do?", "Link is broken, ",
             link_choices, element, attrib, context
         )
-        prompt = "This one is also broken, try again?"
+        message = "That link is also broken"
 
 
 def has_relative_url(element, transformation):
@@ -183,7 +203,8 @@ def has_absolute_url(element, transformation):
         return False
 
 
-def route_url(routes, filepath, root_dir, element, fallback_url=None):
+def route_url(routes, filepath, root_dir, element, verbosity,
+              fallback_url=None):
     old_url = None
     try:
         attrib, old_url = _matched_url(element)
@@ -194,6 +215,6 @@ def route_url(routes, filepath, root_dir, element, fallback_url=None):
         return element
 
     element.attrib[attrib] = routed_url(
-        filepath, routes, root_dir, old_url, fallback_url
+        filepath, routes, root_dir, verbosity, old_url, fallback_url,
     )
     return element

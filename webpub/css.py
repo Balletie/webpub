@@ -10,11 +10,11 @@ cssutils.ser.prefs.indentClosingBrace = False
 cssutils.ser.prefs.omitLastSemicolon = False
 
 
-def replace_urls(epub_zip, routes, root_dir, filepath):
+def replace_urls(epub_zip, routes, root_dir, filepath, verbosity):
     style_string = epub_zip.read(os.path.join(root_dir, filepath))
     stylesheet = cssutils.parseString(style_string)
     cssutils.replaceUrls(
         stylesheet,
-        ft.partial(routed_url, filepath, routes, root_dir)
+        ft.partial(routed_url, filepath, routes, root_dir, verbosity)
     )
     return stylesheet.cssText

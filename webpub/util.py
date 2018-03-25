@@ -2,6 +2,7 @@ import os
 import shutil
 import itertools as it
 
+import click
 from lxml import html
 
 import webpub
@@ -89,3 +90,8 @@ def ensure(result, error_message):
         raise Exception(error_message)
 
     return result[0]
+
+
+def echo(message="", verbosity_level=0, verbosity=0):
+    if verbosity_level >= verbosity:
+        click.echo(message)

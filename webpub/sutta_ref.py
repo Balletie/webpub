@@ -200,7 +200,6 @@ def crossref_document(routes, root_dir, filepath):
     )
 
     curpath = routes[filepath]
-    print("Adding cross-references in {}".format(os.path.relpath(curpath)))
     with open(curpath) as doc:
         doc_tree = html5.parse(
             doc, treebuilder='lxml',
