@@ -16,6 +16,7 @@ def _ensure_url(f):
     return wrapped
 
 
+@_ensure_url
 def is_path(url):
     return not url.netloc and not url.scheme and url.path
 
@@ -78,14 +79,14 @@ def _matched_url(element):
 
 
 def _ignore(element, attrib, context):
-    return element
+    return None
 
 
 def _remove(element, attrib, context):
     inxs.lxml_utils.remove_elements(
         element, keep_children=True, preserve_text=True, preserve_tail=True
     )
-    return element
+    return None
 
 
 def _insert_new(element, attrib, context):
@@ -96,7 +97,7 @@ def _insert_new(element, attrib, context):
 
 def _apply_to_all(element, attrib, context):
     context.apply_to_all = True
-    prev_action = link_choices.get(context.choice, ('',_ignore))
+    prev_action = link_choices.get(context.choice, ('', _ignore))
     return prev_action[1](element, attrib, context)
 
 
@@ -108,6 +109,28 @@ link_choices = {
 }
 
 
+def choice_prompt(prompt, apply_all_msg, choices, element, attrib, context,
+                  default='1'):
+    choice = click.Choice(list(choices.keys()))
+    choices_prompt = ', '.join(
+        k + ': ' + v for k, (v, _) in choices.items()
+    )
+
+    default = context.choice or default
+    value = default
+    if not context.apply_to_all:
+        value = click.prompt(
+            '{}\n({})'.format(prompt, choices_prompt),
+            default=default, type=choice,
+        )
+    else:
+        click.echo(apply_all_msg + choices.get(value, ('', None))[0])
+    res = choices.get(value, ('', _ignore))[1](element, attrib, context)
+    if not context.apply_to_all:
+        context.choice = value
+    return res
+
+
 def check_and_fix_absolute(element, session, context, fallback_url=None):
     old_url = None
     try:
@@ -115,36 +138,33 @@ def check_and_fix_absolute(element, session, context, fallback_url=None):
     except ValueError:
         return element
 
-    old_url = urlparse(old_url)
-
-    if is_relative(old_url):
+    if not is_absolute(old_url):
         return element
 
-    if fallback_url is None:
-        return element
+    prompt = "Broken link, what should I do?"
+    while element is not None:
+        old_url = element.attrib[attrib]
+        old_url = urlparse(old_url)
 
-    fallback_url = urljoin(fallback_url, old_url.path)
-    print("Checking link: {}".format(fallback_url))
-    response = session.head(fallback_url, allow_redirects=True)
-    if response.status_code == requests.codes.ok:
-        return element
+        if fallback_url is None:
+            return element
+        elif is_path(fallback_url):
+            new_path = os.path.normpath(fallback_url + old_url.path)
+            print("Checking link: {}".format(new_path))
+            if os.path.exists(new_path):
+                return element
+        else:
+            check_url = urljoin(fallback_url, old_url.path)
+            print("Checking link: {}".format(check_url))
+            response = session.head(check_url, allow_redirects=True)
+            if response.status_code == requests.codes.ok:
+                return element
 
-    choice = click.Choice(list(link_choices.keys()))
-    choices_prompt = ', '.join(
-        k + ': ' + v for k, (v, _) in link_choices.items()
-    )
-
-    default = context.choice or '1'
-    value = default
-    if not context.apply_to_all:
-        value = click.prompt(
-            'Broken link, what should I do? ({})'.format(choices_prompt),
-            default=default, type=choice,
+        element = choice_prompt(
+            prompt, "Broken link, ",
+            link_choices, element, attrib, context
         )
-    res = link_choices.get(value, ('',_ignore))[1](element, attrib, context)
-    if not context.apply_to_all:
-        context.choice = value
-    return res
+        prompt = "This one is also broken, try again?"
 
 
 def has_relative_url(element, transformation):

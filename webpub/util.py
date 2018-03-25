@@ -15,18 +15,35 @@ def tostring(input):
     ).encode()
 
 
-def guard_dry_run(input, dry_run):
+tostring.verbose_name = "Convert back to string"
+tostring.verbosity = 1
+
+
+def guard_dry_run(input, routes, filepath, dry_run):
     if dry_run:
-        raise webpub.handlers.AbortHandling("Dry run, aborting.")
+        dst = os.path.relpath(routes[filepath])
+        raise webpub.handlers.AbortHandling("Would write {}".format(dst))
 
     return input
 
 
-def guard_overwrite(input, filepath, overwrite):
-    if not overwrite and os.path.exists(filepath):
-        raise webpub.handlers.AbortHandling("Overwriting disabled.")
+guard_dry_run.verbose_name = "Check if it's a dry-run"
+guard_dry_run.verbosity = 2
+
+
+def guard_overwrite(input, filepath, routes, overwrite):
+    dst = routes[filepath]
+    if not overwrite and os.path.exists(dst):
+        dst = os.path.relpath(dst)
+        raise webpub.handlers.AbortHandling(
+            "Not writing because it would overwrite {}".format(dst)
+        )
 
     return input
+
+
+guard_overwrite.verbose_name = "Check if file would be overwritten"
+guard_overwrite.verbosity = 2
 
 
 def copy_out(epub_zip, filepath, output_dir, root_dir, routes):
@@ -39,12 +56,20 @@ def copy_out(epub_zip, filepath, output_dir, root_dir, routes):
             shutil.copyfileobj(src, dst, 8192)
 
 
+copy_out.verbose_name = "Copy file"
+copy_out.verbosity = 1
+
+
 def write_out(input, filepath, output_dir, routes):
     routed_path = os.path.join(output_dir, routes[filepath])
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
         dst.write(input)
+
+
+write_out.verbose_name = "Write result to file"
+write_out.verbosity = 1
 
 
 def reorder(entries, order):

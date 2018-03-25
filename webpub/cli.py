@@ -107,10 +107,12 @@ def linkfix_crossref_common_options(f):
 
 
 @click.command()
-@click.option('--fallback-url', '-u', metavar="URL",
+@click.option('--fallback-url', '-u', metavar="[URL or PATH]",
               help="Test against this URL if the internal link is not found"
-              " locally. If the URL points to a resource (i.e. does not 404),"
-              " this link won't be fixed. Useful if you have a relative link"
+              " locally. If an absolute PATH is given, test against the"
+              " local filesystem with this as base directory."
+              " If the resource exists (i.e. does not 404 as URL), this link"
+              " won't be fixed. Useful if you have a relative link"
               " to a file on a server to which the given files are uploaded.")
 @click.option('--basedir', '-b', metavar="PATH", default='',
               help="Base directory that all links share. All given files are"

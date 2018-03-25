@@ -173,7 +173,6 @@ def link_sutta_references(context, root, element):
     handler = SuttaRefContentHandler()
     tail = element.tail
     element.tail = None
-    print(etree.tostring(element))
     lxml.sax.saxify(element, handler)
     new_element = handler.getOutput()
     new_element.tail = tail

@@ -4,7 +4,7 @@ import mimetypes
 import mimeparse
 import os
 
-from webpub.util import copy_out, write_out
+from webpub.util import copy_out
 
 
 class Route(object):
@@ -89,17 +89,24 @@ class SkipHandler(Exception):
 
 
 def _apply_handlers(handlers, context):
-    print("Start handling {}.".format(context['filepath']))
+    print("Start handling {}.".format(
+        os.path.relpath(context['filepath'])
+    ))
     for handler in handlers:
         kwargs = dependency_injection.resolve_dependencies(
             handler, context
         ).as_kwargs
-        print(" - {}".format(handler.__name__))
+        verbosity_level = context['verbosity']
+        handler_verbosity = getattr(handler, "verbosity", 0)
+        handler_name = getattr(handler, "verbose_name", handler.__name__)
+        if verbosity_level >= handler_verbosity:
+            print(" - {}".format(handler_name))
         try:
             context['input'] = handler(**kwargs)
         except SkipHandler:
             continue
-        except AbortHandling:
+        except AbortHandling as e:
+            print(str(e))
             break
 
     del context['input']
@@ -108,6 +115,7 @@ def _apply_handlers(handlers, context):
 def handle_routes(routes, context):
     context.setdefault('routes', {})
     context.setdefault('src_to_title', {})
+    context.setdefault('verbosity', 1)
     handlers_with_input = OrderedDict()
     for route in routes:
         src = route.src

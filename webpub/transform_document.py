@@ -43,6 +43,9 @@ def transform_document(routes, root_dir, epub_zip, filepath):
     return transformation(root)
 
 
+transform_document.verbose_name = "Apply transformations"
+
+
 def linkfix_document(routes, root_dir, filepath, fallback_url):
     context = locals().copy()
     context['apply_to_all'] = False
@@ -65,3 +68,6 @@ def linkfix_document(routes, root_dir, filepath, fallback_url):
     root = doc_tree.getroot()
     with requests.Session() as s:
         return transformation(root, session=s)
+
+
+linkfix_document.verbose_name = "Fix links"
