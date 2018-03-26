@@ -1,7 +1,7 @@
 import functools as ft
 import os.path
 import requests
-from urllib.parse import urlparse, urlunparse, urljoin
+from urllib.parse import urlparse, urlunparse, urljoin, urldefrag
 import click
 
 import inxs.lxml_utils
@@ -141,6 +141,7 @@ def check_link_against_fallback(url_path, session, verbosity,
     if fallback_url is None:
         raise ValueError("Tried checking without fallback url")
     elif is_path(fallback_url):
+        url_path = urldefrag(url_path).url
         new_path = os.path.normpath(fallback_url + '/' + url_path)
         link = new_path
         webpub.util.echo(

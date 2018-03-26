@@ -20,9 +20,12 @@ has_link = Any(MatchesAttributes({'href': None}),
                MatchesAttributes({'src': None}),)
 
 
-def transform_document(routes, root_dir, epub_zip, filepath):
+def transform_document(routes, root_dir, epub_zip, filepath, verbosity,
+                       currentpath, fallback_url):
     context = locals().copy()
     context.pop('epub_zip', None)
+    context['apply_to_all'] = False
+    context['choice'] = None
 
     transformation = Transformation(
         add_re_namespace,
@@ -39,7 +42,8 @@ def transform_document(routes, root_dir, epub_zip, filepath):
         )
 
     root = doc_tree.getroot()
-    return transformation(root)
+    with requests.Session() as s:
+        return transformation(root, session=s)
 
 
 transform_document.verbose_name = "Apply transformations"

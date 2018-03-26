@@ -156,6 +156,7 @@ def make_webbook(cli_context, epub_zip):
         'toc_order': cli_context.params['toc_order'],
         'template': cli_context.params['template'],
         'output_dir': cli_context.params['output_dir'],
+        'fallback_url': cli_context.params['fallback_url'],
     }
     routes = epub_routes(manifest, spine, metadata, context)
     handle_routes(routes, context)

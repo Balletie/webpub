@@ -229,8 +229,7 @@ class SuttaRefContentHandler(ContentHandler, object):
         return self.out.etree.getroot()
 
 
-def link_sutta_references(context, root, element, fallback_url, session,
-                          verbosity):
+def link_sutta_references(context, root, element):
     handler = SuttaRefContentHandler(context)
     tail = element.tail
     element.tail = None
