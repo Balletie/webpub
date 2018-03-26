@@ -86,6 +86,18 @@ sutta_ref_regex = sutta_ref_regex_template.format(
 )
 
 
+def get_sutta_ref_url(full_match, section, subsection, numeral, text, sep):
+    url_format = sutta_abbrev_urls.get(section)
+    if callable(url_format):
+        return url_format(
+            full_match=full_match, subsection=subsection, numeral=numeral,
+            text=text, sep=sep
+        )
+    return url_format.format(
+         subsection=subsection, numeral=numeral, text=text, sep=sep
+    )
+
+
 class SuttaRefContentHandler(ContentHandler, object):
     def __init__(self, *args, **kwargs):
         self.out = lxml.sax.ElementTreeContentHandler()
@@ -121,20 +133,10 @@ class SuttaRefContentHandler(ContentHandler, object):
             after = after[end:]
 
             self.out.characters(before)
-
-            url_format = sutta_abbrev_urls.get(section)
-            if callable(url_format):
-                url = url_format(
-                    full_match=full_match, numeral=numeral, text=text, sep=sep,
-                    subsection=subsection
-                )
-            else:
-                url = url_format.format(
-                    numeral=numeral, text=text, sep=sep, subsection=subsection
-                )
-
             self.out.startElement('a', {
-                'href': url,
+                'href': get_sutta_ref_url(
+                    section, subsection, numeral, text, sep
+                ),
                 'class': 'sutta-ref',
             })
             self.out.characters(full_match)
