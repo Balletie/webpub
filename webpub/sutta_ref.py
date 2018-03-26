@@ -1,15 +1,20 @@
+from collections import namedtuple
+import functools as ft
 import bisect
 import re
 import os
 
 import html5lib as html5
 import lxml.sax
-from lxml import etree
 from xml.sax import ContentHandler
 from inxs import Transformation, Rule, MatchesXPath
+import requests
 
 from webpub.handlers import handle_routes, ConstDestMimetypeRoute
-from webpub.util import guard_dry_run, guard_overwrite, tostring, write_out
+from webpub.route import check_link_against_fallback, choice_prompt
+from webpub.util import (
+    guard_dry_run, guard_overwrite, tostring, write_out, echo
+)
 
 
 dhp_last_text_numbers = [
@@ -42,12 +47,12 @@ dhp_last_text_numbers = [
 ]
 
 
-def manual_insert(full_match, numeral, text, sep, subsection):
-    return input('Enter cross reference link to "{}": '.format(full_match))
+def _manual_insert(context, ref):
+    return input('Enter cross reference link to "{}": '.format(ref.full_match))
 
 
-def dhp_reference(full_match, numeral, text, sep, subsection):
-    text_num = int(text)
+def dhp_reference(context, ref):
+    text_num = int(ref.text)
     chapter_num = bisect.bisect_left(dhp_last_text_numbers, text_num) + 1
 
     return f'/suttas/KN/Dhp/Ch{chapter_num:02}.html#dhp{text_num:03}'
@@ -67,12 +72,12 @@ sutta_abbrev_urls = {
     'Thig': '/suttas/KN/Thig/thig{subsection}{sep}{text}.html',
     'Ud': '/suttas/KN/Ud/ud{subsection}{sep}{text}.html',
     'Mv': '/vinaya/Mv/Mv{numeral}.html#pts{subsection}{sep}{text}',
-    'Cv': manual_insert,
-    'Pr': manual_insert,
-    'Pc': manual_insert,
-    'NP': manual_insert,
-    'Sg': manual_insert,
-    'Sk': manual_insert,
+    'Cv': _manual_insert,
+    'Pr': _manual_insert,
+    'Pc': _manual_insert,
+    'NP': _manual_insert,
+    'Sg': _manual_insert,
+    'Sk': _manual_insert,
 }
 
 sutta_ref_regex_template = \
@@ -86,23 +91,73 @@ sutta_ref_regex = sutta_ref_regex_template.format(
 )
 
 
-def get_sutta_ref_url(full_match, section, subsection, numeral, text, sep):
-    url_format = sutta_abbrev_urls.get(section)
-    if callable(url_format):
-        return url_format(
-            full_match=full_match, subsection=subsection, numeral=numeral,
-            text=text, sep=sep
-        )
-    return url_format.format(
-         subsection=subsection, numeral=numeral, text=text, sep=sep
-    )
+def _continue(context, *args, **kwargs):
+    return None
+
+
+def _apply_to_all(context, *args, **kwargs):
+    context.apply_to_all = True
+    prev_action = sutta_ref_choices.get(context.choice, ('', _continue))
+    return prev_action[1](context, *args, **kwargs)
+
+
+sutta_ref_choices = {
+    '1': ('continue without', _continue),
+    '2': ('manually insert', _manual_insert),
+    'a': ('apply to all', _apply_to_all),
+}
+
+
+SuttaRef = namedtuple(
+    'SuttaRef',
+    ['full_match', 'section', 'subsection', 'numeral', 'text', 'sep']
+)
 
 
 class SuttaRefContentHandler(ContentHandler, object):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, context, *args, **kwargs):
         self.out = lxml.sax.ElementTreeContentHandler()
+        self.context = context
         self.openElements = []
         super().__init__(*args, **kwargs)
+
+    def get_url_format_callable(self, ref):
+        url_format = sutta_abbrev_urls.get(ref.section)
+        if callable(url_format):
+            return ft.partial(url_format, self.context, ref)
+        return ft.partial(
+            url_format.format, subsection=ref.subsection,
+            numeral=ref.numeral, text=ref.text, sep=ref.sep
+        )
+
+    def get_sutta_ref_url(self, ref):
+        url_format = self.get_url_format_callable(ref)
+        url = url_format()
+        message = "In file {}:\nSutta link not found".format(
+            self.context.currentpath
+        )
+        while url is not None:
+            try:
+                res = check_link_against_fallback(
+                    url, self.context.session, self.context.verbosity,
+                    self.context.fallback_url
+                )
+            except ValueError:
+                return url
+
+            if res is True:
+                return url
+            link = res
+
+            echo(
+                "\n{}: {}\n".format(message, link),
+                self.context.verbosity
+            )
+            url = choice_prompt(
+                'Sutta not found, what should I do?', 'Sutta not found, ',
+                sutta_ref_choices, self.context, ref
+            )
+            message = "Sutta link not found"
 
     def characters(self, data):
         # If we're inside a link, don't substitute.
@@ -125,6 +180,7 @@ class SuttaRefContentHandler(ContentHandler, object):
             if matchobj.group('text'):
                 subsection = matchobj.group('text_or_subsection')
                 sep = '_'
+            ref = SuttaRef(full_match, section, subsection, numeral, text, sep)
 
             start = matchobj.start() - offset
             end = matchobj.end() - offset
@@ -132,15 +188,17 @@ class SuttaRefContentHandler(ContentHandler, object):
             before = after[:start]
             after = after[end:]
 
+            url = self.get_sutta_ref_url(ref)
+
             self.out.characters(before)
-            self.out.startElement('a', {
-                'href': get_sutta_ref_url(
-                    section, subsection, numeral, text, sep
-                ),
-                'class': 'sutta-ref',
-            })
+            if url:
+                self.out.startElement('a', {
+                    'href': url,
+                    'class': 'sutta-ref',
+                })
             self.out.characters(full_match)
-            self.out.endElement('a')
+            if url:
+                self.out.endElement('a')
 
             offset += end
         self.out.characters(after)
@@ -171,8 +229,9 @@ class SuttaRefContentHandler(ContentHandler, object):
         return self.out.etree.getroot()
 
 
-def link_sutta_references(context, root, element):
-    handler = SuttaRefContentHandler()
+def link_sutta_references(context, root, element, fallback_url, session,
+                          verbosity):
+    handler = SuttaRefContentHandler(context)
     tail = element.tail
     element.tail = None
     lxml.sax.saxify(element, handler)
@@ -192,8 +251,11 @@ def add_re_namespace(xpath_evaluator):
     )
 
 
-def crossref_document(routes, root_dir, filepath):
+def crossref_document(routes, root_dir, filepath, currentpath, fallback_url,
+                      verbosity):
     context = locals().copy()
+    context['apply_to_all'] = False
+    context['choice'] = None
 
     transformation = Transformation(
         add_re_namespace,
@@ -209,7 +271,8 @@ def crossref_document(routes, root_dir, filepath):
         )
 
     root = doc_tree.getroot()
-    return transformation(root)
+    with requests.Session() as s:
+        return transformation(root, session=s)
 
 
 linkfix_mime_handlers = {
@@ -231,7 +294,7 @@ def cross_ref_routes(filenames, output_dir):
         yield CrossRefRoute(src, dst)
 
 
-def cross_ref(filenames, dry_run, output_dir, overwrite):
+def cross_ref(filenames, fallback_url, dry_run, output_dir, overwrite):
     if dry_run:
         print("Dry run; no files will be written")
     filenames = [os.path.realpath(fname) for fname in filenames]
@@ -241,6 +304,7 @@ def cross_ref(filenames, dry_run, output_dir, overwrite):
         'overwrite': overwrite,
         'root_dir': root_dir,
         'output_dir': output_dir or root_dir,
+        'fallback_url': fallback_url,
     }
     routes = cross_ref_routes(filenames, output_dir)
     handle_routes(routes, context)

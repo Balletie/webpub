@@ -83,27 +83,27 @@ def _matched_url(element):
         raise ValueError("No URL attribute found on element")
 
 
-def _ignore(element, attrib, context):
+def _ignore(*args, **kwargs):
     return None
 
 
-def _remove(element, attrib, context):
+def _remove(context, element, attrib):
     inxs.lxml_utils.remove_elements(
         element, keep_children=True, preserve_text=True, preserve_tail=True
     )
     return None
 
 
-def _insert_new(element, attrib, context):
+def _insert_new(context, element, attrib):
     new_url = click.prompt('Enter new link')
     element.attrib[attrib] = new_url
     return element
 
 
-def _apply_to_all(element, attrib, context):
+def _apply_to_all(context, element, attrib):
     context.apply_to_all = True
     prev_action = link_choices.get(context.choice, ('', _ignore))
-    return prev_action[1](element, attrib, context)
+    return prev_action[1](context, element, attrib)
 
 
 link_choices = {
@@ -114,14 +114,13 @@ link_choices = {
 }
 
 
-def choice_prompt(prompt, apply_all_msg, choices, element, attrib, context,
-                  default='1'):
+def choice_prompt(prompt, apply_all_msg, choices, context, *args, **kwargs):
     choice = click.Choice(list(choices.keys()))
     choices_prompt = ', '.join(
         k + ': ' + v for k, (v, _) in choices.items()
     )
 
-    default = context.choice or default
+    default = context.choice or '1'
     value = default
     if not context.apply_to_all:
         value = click.prompt(
@@ -129,11 +128,38 @@ def choice_prompt(prompt, apply_all_msg, choices, element, attrib, context,
             default=default, type=choice,
         )
     else:
-        click.echo(apply_all_msg + choices.get(value, ('', None))[0])
-    res = choices.get(value, ('', _ignore))[1](element, attrib, context)
+        click.echo(apply_all_msg + choices[value][0])
+    res = choices[value][1](context, *args, **kwargs)
     if not context.apply_to_all:
         context.choice = value
     return res
+
+
+def check_link_against_fallback(url_path, session, verbosity,
+                                fallback_url=None):
+    link = fallback_url
+    if fallback_url is None:
+        raise ValueError("Tried checking without fallback url")
+    elif is_path(fallback_url):
+        new_path = os.path.normpath(fallback_url + '/' + url_path)
+        link = new_path
+        webpub.util.echo(
+            "Checking link: {}".format(new_path),
+            verbosity, 2
+        )
+        if os.path.exists(new_path):
+            return True
+    else:
+        check_url = urljoin(fallback_url, url_path)
+        link = check_url
+        webpub.util.echo(
+            "Checking link: {}".format(check_url),
+            verbosity, 2
+        )
+        response = session.head(check_url, allow_redirects=True)
+        if response.status_code == requests.codes.ok:
+            return True
+    return link
 
 
 def check_and_fix_absolute(element, session, context, verbosity,
@@ -152,29 +178,16 @@ def check_and_fix_absolute(element, session, context, verbosity,
         old_url = element.attrib[attrib]
         old_url = urlparse(old_url)
 
-        link = fallback_url
-
-        if fallback_url is None:
+        try:
+            res = check_link_against_fallback(
+                old_url.path, session, verbosity, fallback_url
+            )
+        except ValueError:
             return element
-        elif is_path(fallback_url):
-            new_path = os.path.normpath(fallback_url + old_url.path)
-            webpub.util.echo(
-                "Checking link: {}".format(new_path),
-                verbosity, 2
-            )
-            if os.path.exists(new_path):
-                return element
-            link = new_path
-        else:
-            check_url = urljoin(fallback_url, old_url.path)
-            webpub.util.echo(
-                "Checking link: {}".format(check_url),
-                verbosity, 2
-            )
-            response = session.head(check_url, allow_redirects=True)
-            if response.status_code == requests.codes.ok:
-                return element
-            link = check_url
+
+        if res is True:
+            return element
+        link = res
 
         webpub.util.echo(
             "\n{}: {}\n".format(message, link),
@@ -182,7 +195,7 @@ def check_and_fix_absolute(element, session, context, verbosity,
         )
         element = choice_prompt(
             "Link is broken, what should I do?", "Link is broken, ",
-            link_choices, element, attrib, context
+            link_choices, context, element, attrib,
         )
         message = "That link is also broken"
 
