@@ -4,7 +4,8 @@ import mimetypes
 import mimeparse
 import os
 
-from webpub.util import copy_out, echo
+from webpub.util import copy_out
+from webpub.ui import echo
 
 
 class Route(object):

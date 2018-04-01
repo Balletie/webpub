@@ -65,7 +65,7 @@ def routed_url(filepath, routes, root_dir, old_url_str, fallback_url=None):
         url_list = list(url)
         url_list[2] = rel_routed
         new_url_str = urlunparse(url_list)
-        webpub.util.echo(
+        webpub.ui.echo(
             "Routed {} to {}.".format(old_url_str, new_url_str),
             verbosity=2
         )
@@ -114,27 +114,6 @@ link_choices = {
 }
 
 
-def choice_prompt(prompt, apply_all_msg, choices, context, *args, **kwargs):
-    choice = click.Choice(list(choices.keys()))
-    choices_prompt = ', '.join(
-        k + ': ' + v for k, (v, _) in choices.items()
-    )
-
-    default = context.choice or '1'
-    value = default
-    if not context.apply_to_all:
-        value = click.prompt(
-            '{}\n({})'.format(prompt, choices_prompt),
-            default=default, type=choice,
-        )
-    else:
-        click.echo(apply_all_msg + choices[value][0])
-    res = choices[value][1](context, *args, **kwargs)
-    if not context.apply_to_all:
-        context.choice = value
-    return res
-
-
 def check_link_against_fallback(url_path, session, fallback_url=None):
     link = fallback_url
     if fallback_url is None:
@@ -143,7 +122,7 @@ def check_link_against_fallback(url_path, session, fallback_url=None):
         url_path = urldefrag(url_path).url
         new_path = os.path.normpath(fallback_url + '/' + url_path)
         link = new_path
-        webpub.util.echo(
+        webpub.ui.echo(
             "Checking link: {}".format(new_path), verbosity=2
         )
         if os.path.exists(new_path):
@@ -151,7 +130,7 @@ def check_link_against_fallback(url_path, session, fallback_url=None):
     else:
         check_url = urljoin(fallback_url, url_path)
         link = check_url
-        webpub.util.echo(
+        webpub.ui.echo(
             "Checking link: {}".format(check_url), verbosity=2
         )
         response = session.head(check_url, allow_redirects=True)
@@ -187,8 +166,8 @@ def check_and_fix_absolute(element, session, context, currentpath,
             return element
         link = res
 
-        webpub.util.echo("\n{}: {}\n".format(message, link))
-        element = choice_prompt(
+        webpub.ui.echo("\n{}: {}\n".format(message, link))
+        element = webpub.ui.choice_prompt(
             "Link is broken, what should I do?", "Link is broken, ",
             link_choices, context, element, attrib,
         )

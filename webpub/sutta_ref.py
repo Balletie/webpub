@@ -11,10 +11,9 @@ from inxs import Transformation, Rule, MatchesXPath
 import requests
 
 from webpub.handlers import handle_routes, ConstDestMimetypeRoute
-from webpub.route import check_link_against_fallback, choice_prompt
-from webpub.util import (
-    guard_dry_run, guard_overwrite, tostring, write_out, echo
-)
+from webpub.route import check_link_against_fallback
+from webpub.util import guard_dry_run, guard_overwrite, tostring, write_out
+from webpub.ui import echo, choice_prompt
 
 
 dhp_last_text_numbers = [
