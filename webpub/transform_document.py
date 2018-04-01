@@ -24,8 +24,6 @@ def transform_document(routes, root_dir, epub_zip, filepath, currentpath,
                        fallback_url):
     context = locals().copy()
     context.pop('epub_zip', None)
-    context['apply_to_all'] = False
-    context['choice'] = None
 
     transformation = Transformation(
         add_re_namespace,
@@ -52,8 +50,6 @@ transform_document.verbose_name = "Apply transformations"
 def linkfix_document(routes, root_dir, filepath, currentpath, fallback_url):
     currentpath = routes[filepath]
     context = locals().copy()
-    context['apply_to_all'] = False
-    context['choice'] = None
 
     transformation = Transformation(
         Rule([has_link, has_relative_url], route_url),

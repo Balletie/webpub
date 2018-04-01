@@ -46,7 +46,7 @@ dhp_last_text_numbers = [
 ]
 
 
-def _manual_insert(context, ref):
+def _manual_insert(ui_context, ref):
     return input('Enter cross reference link to "{}": '.format(ref.full_match))
 
 
@@ -90,14 +90,14 @@ sutta_ref_regex = sutta_ref_regex_template.format(
 )
 
 
-def _continue(context, *args, **kwargs):
+def _continue(ui_ctx, *args, **kwargs):
     return None
 
 
-def _apply_to_all(context, *args, **kwargs):
-    context.apply_to_all = True
-    prev_action = sutta_ref_choices.get(context.choice, ('', _continue))
-    return prev_action[1](context, *args, **kwargs)
+def _apply_to_all(ui_ctx, *args, **kwargs):
+    ui_ctx.apply_to_all = True
+    prev_action = sutta_ref_choices.get(ui_ctx.choice, ('', _continue))
+    return prev_action[1](ui_ctx, *args, **kwargs)
 
 
 sutta_ref_choices = {
@@ -150,7 +150,7 @@ class SuttaRefContentHandler(ContentHandler, object):
             echo("\n{}: {}\n".format(message, link))
             url = choice_prompt(
                 'Sutta not found, what should I do?', 'Sutta not found, ',
-                sutta_ref_choices, self.context, ref
+                sutta_ref_choices, ref
             )
             message = "Sutta link not found"
 
@@ -247,8 +247,6 @@ def add_re_namespace(xpath_evaluator):
 
 def crossref_document(routes, root_dir, filepath, currentpath, fallback_url):
     context = locals().copy()
-    context['apply_to_all'] = False
-    context['choice'] = None
 
     transformation = Transformation(
         add_re_namespace,

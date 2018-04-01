@@ -87,23 +87,23 @@ def _ignore(*args, **kwargs):
     return None
 
 
-def _remove(context, element, attrib):
+def _remove(ui_ctx, element, attrib):
     inxs.lxml_utils.remove_elements(
         element, keep_children=True, preserve_text=True, preserve_tail=True
     )
     return None
 
 
-def _insert_new(context, element, attrib):
+def _insert_new(ui_ctx, element, attrib):
     new_url = click.prompt('Enter new link')
     element.attrib[attrib] = new_url
     return element
 
 
-def _apply_to_all(context, element, attrib):
-    context.apply_to_all = True
-    prev_action = link_choices.get(context.choice, ('', _ignore))
-    return prev_action[1](context, element, attrib)
+def _apply_to_all(ui_ctx, element, attrib):
+    ui_ctx.apply_to_all = True
+    prev_action = link_choices.get(ui_ctx.choice, ('', _ignore))
+    return prev_action[1](ui_ctx, element, attrib)
 
 
 link_choices = {
@@ -139,8 +139,7 @@ def check_link_against_fallback(url_path, session, fallback_url=None):
     return link
 
 
-def check_and_fix_absolute(element, session, context, currentpath,
-                           fallback_url=None):
+def check_and_fix_absolute(element, session, currentpath, fallback_url=None):
     old_url = None
     try:
         attrib, old_url = _matched_url(element)
@@ -169,7 +168,7 @@ def check_and_fix_absolute(element, session, context, currentpath,
         webpub.ui.echo("\n{}: {}\n".format(message, link))
         element = webpub.ui.choice_prompt(
             "Link is broken, what should I do?", "Link is broken, ",
-            link_choices, context, element, attrib,
+            link_choices, element, attrib,
         )
         message = "That link is also broken"
 
