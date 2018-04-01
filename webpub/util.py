@@ -92,6 +92,9 @@ def ensure(result, error_message):
     return result[0]
 
 
-def echo(message="", verbosity_level=0, verbosity=0):
-    if verbosity_level >= verbosity:
+def echo(message="", verbosity=0):
+    ui_ctx = click.get_current_context().find_object(
+        webpub.ui.UserInterfaceContext
+    )
+    if ui_ctx.verbosity >= verbosity:
         click.echo(message)

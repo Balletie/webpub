@@ -139,8 +139,7 @@ class SuttaRefContentHandler(ContentHandler, object):
         while url is not None:
             try:
                 res = check_link_against_fallback(
-                    url, self.context.session, self.context.verbosity,
-                    self.context.fallback_url
+                    url, self.context.session, self.context.fallback_url
                 )
             except ValueError:
                 return url
@@ -149,10 +148,7 @@ class SuttaRefContentHandler(ContentHandler, object):
                 return url
             link = res
 
-            echo(
-                "\n{}: {}\n".format(message, link),
-                self.context.verbosity
-            )
+            echo("\n{}: {}\n".format(message, link))
             url = choice_prompt(
                 'Sutta not found, what should I do?', 'Sutta not found, ',
                 sutta_ref_choices, self.context, ref
@@ -250,8 +246,7 @@ def add_re_namespace(xpath_evaluator):
     )
 
 
-def crossref_document(routes, root_dir, filepath, currentpath, fallback_url,
-                      verbosity):
+def crossref_document(routes, root_dir, filepath, currentpath, fallback_url):
     context = locals().copy()
     context['apply_to_all'] = False
     context['choice'] = None

@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 import itertools as it
+import functools as ft
 import os
 import zipfile as zf
 
 import click
+
+from webpub.ui import UserInterfaceContext
 
 
 class IntOrTocType(click.ParamType):
@@ -34,6 +37,20 @@ def make_order(ctx, param, values):
     return filled_values
 
 
+def ensure_ui_context(f):
+    @ft.wraps(f)
+    def wrapper(*args, **kwargs):
+        ctx = click.get_current_context()
+        ctx.ensure_object(UserInterfaceContext)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def set_verbosity(ctx, param, value):
+    ui_ctx = ctx.ensure_object(UserInterfaceContext)
+    setattr(ui_ctx, 'verbosity', value)
+
+
 webpub_epilog = """The --spine-order and --toc-order are specified multiple times to
 determine the order. For example, '-o 2 -o toc -o 1' first puts the
 second document, then the generated Table of Contents, then the first
@@ -52,6 +69,11 @@ def common_options(f):
                      " URL), this link won't be fixed. Useful if you have a"
                      " relative link to a file on a server to which the given"
                      " files are uploaded.")(f)
+    f = click.option('--verbose', '-v', count=True, expose_value=False,
+                     callback=set_verbosity,
+                     help="Enable verbose output. Use this multiple times to"
+                     " set different verbosity levels (e.g. '-vvv').")(f)
+    f = ensure_ui_context(f)
     return f
 
 

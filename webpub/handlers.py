@@ -89,21 +89,18 @@ class SkipHandler(Exception):
 
 
 def _apply_handlers(handlers, context):
-    echo("\nStart handling {}.".format(
-        os.path.relpath(context['filepath'])
-    ), context['verbosity'], 1)
+    echo(
+        "\nStart handling {}.".format(os.path.relpath(context['filepath'])),
+        verbosity=1
+    )
     for handler in handlers:
         kwargs = dependency_injection.resolve_dependencies(
             handler, context
         ).as_kwargs
 
-        verbosity_level = context['verbosity']
         handler_verbosity = getattr(handler, "verbosity", 1)
         handler_name = getattr(handler, "verbose_name", handler.__name__)
-        echo(
-            "\n - {}".format(handler_name),
-            verbosity_level, handler_verbosity
-        )
+        echo("\n - {}".format(handler_name), verbosity=handler_verbosity)
 
         try:
             context['input'] = handler(**kwargs)
@@ -119,7 +116,6 @@ def _apply_handlers(handlers, context):
 def handle_routes(routes, context):
     context.setdefault('routes', {})
     context.setdefault('src_to_title', {})
-    context.setdefault('verbosity', 0)
     handlers_with_input = OrderedDict()
     for route in routes:
         src = route.src

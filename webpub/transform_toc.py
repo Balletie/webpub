@@ -98,7 +98,7 @@ def indent(contents_div, level=0):
 
 
 def transform_toc(routes, toc_order, src_to_title, root_dir, epub_zip,
-                  section_title, filepath, verbosity):
+                  section_title, filepath):
     context = locals().copy()
     context.pop('epub_zip', None)
     context.pop('toc_order', None)

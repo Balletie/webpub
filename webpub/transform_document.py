@@ -20,8 +20,8 @@ has_link = Any(MatchesAttributes({'href': None}),
                MatchesAttributes({'src': None}),)
 
 
-def transform_document(routes, root_dir, epub_zip, filepath, verbosity,
-                       currentpath, fallback_url):
+def transform_document(routes, root_dir, epub_zip, filepath, currentpath,
+                       fallback_url):
     context = locals().copy()
     context.pop('epub_zip', None)
     context['apply_to_all'] = False
@@ -49,8 +49,7 @@ def transform_document(routes, root_dir, epub_zip, filepath, verbosity,
 transform_document.verbose_name = "Apply transformations"
 
 
-def linkfix_document(routes, root_dir, filepath, verbosity,
-                     currentpath, fallback_url):
+def linkfix_document(routes, root_dir, filepath, currentpath, fallback_url):
     currentpath = routes[filepath]
     context = locals().copy()
     context['apply_to_all'] = False
