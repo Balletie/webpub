@@ -73,6 +73,11 @@ def common_options(f):
                      callback=set_verbosity,
                      help="Enable verbose output. Use this multiple times to"
                      " set different verbosity levels (e.g. '-vvv').")(f)
+    f = click.option('--dry-run', '-n', default=False, is_flag=True,
+                     help="Don't write anything, only show what would"
+                     " happen.")(f)
+    f = click.option('--overwrite/--no-overwrite', '-f/ ', default=False,
+                     help="Whether or not to overwrite existing files.")(f)
     f = ensure_ui_context(f)
     return f
 
@@ -104,7 +109,7 @@ def common_options(f):
                 type=click.File('rb'))
 @click.pass_context
 def main(context, output_dir, template, spine_order, toc_order, fallback_url,
-         epub_filename):
+         dry_run, overwrite, epub_filename):
     """Process EPUB documents for web publishing.
 
     Given INFILE as input, this script:
@@ -127,15 +132,10 @@ def main(context, output_dir, template, spine_order, toc_order, fallback_url,
 
 def linkfix_crossref_common_options(f):
     f = common_options(f)
-    f = click.option('--dry-run', '-n', default=False, is_flag=True,
-                     help="Don't write anything, only show what would"
-                     " happen.")(f)
     f = click.option('--directory', '-d', 'output_dir',
                      type=click.Path(file_okay=False, dir_okay=True,
                                      writable=True, exists=True),
                      help="The output directory to save the files.")(f)
-    f = click.option('--overwrite/--no-overwrite', '-f/ ', default=False,
-                     help="Whether or not to overwrite existing files.")(f)
     f = click.argument('filenames', metavar='INFILE', nargs=-1, required=True,
                        type=click.Path(file_okay=True, dir_okay=False,
                                        readable=True, writable=True,
@@ -153,8 +153,8 @@ def linkfix_crossref_common_options(f):
               help="Specifies a custom route. Expects two arguments, and may"
               " be used multiple times.")
 @linkfix_crossref_common_options
-def linkfix_cmd(basedir, custom_routes, fallback_url, dry_run, output_dir,
-                overwrite, filenames):
+def linkfix_cmd(basedir, custom_routes, fallback_url, dry_run, overwrite,
+                output_dir, filenames):
     """Attempts to fix relative links among the given files.
     """
     import webpub.linkfix
@@ -164,7 +164,7 @@ def linkfix_cmd(basedir, custom_routes, fallback_url, dry_run, output_dir,
 
 @click.command()
 @linkfix_crossref_common_options
-def sutta_cross_ref_cmd(fallback_url, dry_run, output_dir, overwrite,
+def sutta_cross_ref_cmd(fallback_url, dry_run, overwrite, output_dir,
                         filenames):
     """Creates cross-references to suttas. Leaves existing references
     intact. Only affects HTML files.

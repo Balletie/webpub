@@ -20,9 +20,10 @@ tostring.verbose_name = "Convert back to string"
 tostring.verbosity = 1
 
 
-def guard_dry_run(input, routes, filepath, dry_run):
+def guard_dry_run(input, routes, output_dir, filepath, dry_run):
     if dry_run:
-        dst = os.path.relpath(routes[filepath])
+        dst = os.path.join(output_dir, routes[filepath])
+        dst = os.path.relpath(dst)
         raise webpub.handlers.AbortHandling("Would write {}".format(dst))
 
     return input
@@ -32,13 +33,15 @@ guard_dry_run.verbose_name = "Check if it's a dry-run"
 guard_dry_run.verbosity = 2
 
 
-def guard_overwrite(input, filepath, routes, overwrite):
-    dst = routes[filepath]
-    if not overwrite and os.path.exists(dst):
+def guard_overwrite(input, output_dir, filepath, routes, overwrite):
+    dst = os.path.join(output_dir, routes[filepath])
+    if os.path.exists(dst):
         dst = os.path.relpath(dst)
-        raise webpub.handlers.AbortHandling(
-            "Not writing because it would overwrite {}".format(dst)
-        )
+        if not overwrite:
+            raise webpub.handlers.AbortHandling(
+                "Not writing because it would overwrite {}".format(dst)
+            )
+        webpub.ui.echo("File {} overwritten".format(dst), verbosity=2)
 
     return input
 

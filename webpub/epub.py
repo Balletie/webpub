@@ -7,7 +7,9 @@ from webpub.transform_toc import transform_toc
 from webpub.transform import render_template
 from webpub.css import replace_urls
 from webpub.handlers import handle_routes, MimetypeRoute
-from webpub.util import reorder, ensure, copy_out, write_out
+from webpub.util import (
+    reorder, ensure, copy_out, write_out, guard_dry_run, guard_overwrite
+)
 
 
 ocf_namespace = {
@@ -55,12 +57,13 @@ def _ensure_html_extension(path):
 default_mime_to_dst_and_handlers = {
     'text/html': (_ensure_html_extension,
                   (transform_document, render_template,
-                   write_out)),
+                   guard_dry_run, guard_overwrite, write_out)),
     'application/xhtml+xml': 'text/html',
     'application/x-dtbncx+xml': (lambda _: './Contents.html',
                                  (transform_toc, render_template,
-                                  write_out)),
-    'text/css': ('./css/', (replace_urls, write_out)),
+                                  guard_dry_run, guard_overwrite, write_out)),
+    'text/css': ('./css/', (replace_urls, guard_dry_run, guard_overwrite,
+                            write_out)),
     'image/*': ('./img/', (copy_out,)),
     '*/*': ('./etc/', (copy_out,))
 }
@@ -157,6 +160,8 @@ def make_webbook(cli_context, epub_zip):
         'template': cli_context.params['template'],
         'output_dir': cli_context.params['output_dir'],
         'fallback_url': cli_context.params['fallback_url'],
+        'dry_run': cli_context.params['dry_run'],
+        'overwrite': cli_context.params['overwrite'],
     }
     routes = epub_routes(manifest, spine, metadata, context)
     handle_routes(routes, context)
