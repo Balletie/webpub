@@ -33,3 +33,6 @@ def render_template(template, input, filepath, spine,
         )
     template = jinja2_env.get_template(template)
     return template.render(context).encode()
+
+
+render_template.verbose_name = "Apply template"

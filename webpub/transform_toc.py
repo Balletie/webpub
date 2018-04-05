@@ -121,7 +121,6 @@ def transform_toc(routes, toc_order, src_to_title, root_dir, epub_zip,
         context=context
     )
 
-    print("Transforming {}".format(filepath))
     with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
         parser = etree.XMLParser(remove_blank_text=True)
         doc_tree = etree.parse(doc_xml, parser)
@@ -132,3 +131,6 @@ def transform_toc(routes, toc_order, src_to_title, root_dir, epub_zip,
         src_to_title=src_to_title,
         toc_order=toc_order,
     )
+
+
+transform_toc.verbose_name = "Generate Table of Contents"
