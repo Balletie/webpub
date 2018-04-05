@@ -94,6 +94,12 @@ def _continue(ui_ctx, *args, **kwargs):
     return None
 
 
+def _insert(ui_ctx, *args, **kwargs):
+    # get_sutta_ref_url checks if True is returned, and returns URL
+    # without checking it.
+    return True
+
+
 def _apply_to_all(ui_ctx, *args, **kwargs):
     ui_ctx.apply_to_all = True
     prev_action = sutta_ref_choices.get(ui_ctx.choice, ('', _continue))
@@ -102,7 +108,8 @@ def _apply_to_all(ui_ctx, *args, **kwargs):
 
 sutta_ref_choices = {
     '1': ('continue without', _continue),
-    '2': ('manually insert', _manual_insert),
+    '2': ('insert anyway', _insert),
+    '3': ('manually insert', _manual_insert),
     'a': ('apply to all', _apply_to_all),
 }
 
@@ -148,10 +155,13 @@ class SuttaRefContentHandler(ContentHandler, object):
             link = res
 
             echo("\n{}: {}\n".format(message, link))
-            url = choice_prompt(
+            choice = choice_prompt(
                 'Sutta not found, what should I do?', 'Sutta not found, ',
                 sutta_ref_choices, ref
             )
+            if choice is True:
+                return url
+            url = choice
             message = "Sutta link not found"
 
     def characters(self, data):
