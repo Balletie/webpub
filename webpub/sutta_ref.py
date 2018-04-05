@@ -153,9 +153,9 @@ class SuttaRefContentHandler(ContentHandler, object):
                 return url
             link = res
 
-            echo("\n{}: {}\n".format(message, link))
+            echo("{}: {}".format(message, link))
             choice = choice_prompt(
-                'Sutta not found, what should I do?', 'Sutta not found, ',
+                'What should I do?', 'Sutta not found, ',
                 sutta_ref_choices, ref
             )
             if choice is True:

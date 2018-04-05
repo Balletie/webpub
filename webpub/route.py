@@ -164,7 +164,7 @@ def check_and_fix_absolute(element, session, currentpath, fallback_url=None):
             return element
         link = res
 
-        webpub.ui.echo("\n{}: {}\n".format(message, link))
+        webpub.ui.echo("{}: {}".format(message, link))
         element = webpub.ui.choice_prompt(
             "Link is broken, what should I do?", "Link is broken, ",
             link_choices, element, attrib,
