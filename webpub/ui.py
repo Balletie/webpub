@@ -14,10 +14,33 @@ def get_ui_context():
     )
 
 
+def _fallback_choice_action(*args, **kwargs):
+    return None
+
+
+def _apply_to_all_choice(choices):
+    def _apply_to_all(ui_ctx, *args, **kwargs):
+        ui_ctx.apply_to_all = True
+        prev_action = choices.get(ui_ctx.choice, ('', _fallback_choice_action))
+        return prev_action[1](ui_ctx, *args, **kwargs)
+    return _apply_to_all
+
+
+def _quit(ui_ctx, *args, **kwargs):
+    return click.get_current_context().abort()
+
+
+default_choices = {
+    'q': ('quit', _quit),
+}
+
+
 def choice_prompt(prompt, apply_all_msg, choices, *args, **kwargs):
     ui_ctx = get_ui_context()
+    choices['a'] = ('apply default to all', _apply_to_all_choice(choices))
+    choices.update(default_choices)
     choice = click.Choice(list(choices.keys()))
-    choices_prompt = ', '.join(
+    choices_prompt = '\n'.join(
         k + ': ' + v for k, (v, _) in choices.items()
     )
 
@@ -25,8 +48,10 @@ def choice_prompt(prompt, apply_all_msg, choices, *args, **kwargs):
     value = default
     if not ui_ctx.apply_to_all:
         value = click.prompt(
-            '{}\n({})'.format(prompt, choices_prompt),
-            default=default, type=choice,
+            '{}\n{}\nPlease enter (defaults to \'{}\')'.format(
+                prompt, choices_prompt, default,
+            ),
+            default=default, show_default=False, type=choice,
         )
     else:
         click.echo(apply_all_msg + choices[value][0])

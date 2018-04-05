@@ -108,9 +108,8 @@ def _apply_to_all(ui_ctx, *args, **kwargs):
 
 sutta_ref_choices = {
     '1': ('continue without', _continue),
-    '2': ('insert anyway', _insert),
-    '3': ('manually insert', _manual_insert),
-    'a': ('apply to all', _apply_to_all),
+    '2': ('insert it anyway', _insert),
+    '3': ('insert manually', _manual_insert),
 }
 
 

@@ -110,7 +110,6 @@ link_choices = {
     '1': ('ignore', _ignore),
     '2': ('remove link', _remove),
     '3': ('insert new link', _insert_new),
-    'a': ('apply to all', _apply_to_all),
 }
 
 
