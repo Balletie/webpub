@@ -8,6 +8,7 @@
 
 # Maintainer: Your Name <youremail@domain.com>
 _repo_url="https://github.com/Balletie/webpub"
+_sphinx_ext_repo_url="https://github.com/Balletie/sphinx-click"
 pkgname=webpub
 pkgver=1.0
 pkgrel=1
@@ -16,22 +17,55 @@ arch=('x86_64')
 url="$_repo_url"
 license=('unknown')
 groups=()
-depends=('python')
-makedepends=('python-pip')
+depends=( 'python'
+          'python-lxml'
+          'python-html5lib'
+          'python-webencodings'
+          'python-requests'
+          'python-chardet'
+          'python-certifi'
+          'python-idna'
+          'python-urllib3'
+          'python-cssselect'
+          'python-cssutils'
+          'python-click'
+          'python-jinja'
+          'python-markupsafe'
+          'python-mimeparse'
+          )
+makedepends=('python-pip' 'python-sphinx' 'python-click')
 provides=()
 conflicts=()
 replaces=()
 backup=()
 options=(!emptydirs)
 install=
-source=("git+$_repo_url")
-md5sums=('SKIP')
+source=("git+$_repo_url"
+        "git+$_sphinx_ext_repo_url")
+md5sums=('SKIP'
+         'SKIP')
+
+prepare() {
+  cd "$srcdir/webpub"
+  git submodule init
+  git config submodule.sphinx-click.url $srcdir/sphinx-click
+  git submodule update
+}
+
+build() {
+  cd ${srcdir}/${pkgname}/docs
+  make man
+}
 
 package() {
   cd "$srcdir/webpub"
-  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps lxml html5lib webencodings requests chardet certifi idna urllib3 cssselect cssutils click jinja2 MarkupSafe dependency-injection python-mimeparse
-  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps git+https://github.com/Balletie/inxs.git
+  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps dependency-injection git+https://github.com/Balletie/inxs.git
   python setup.py install --root="$pkgdir/" --optimize=1
+
+  install -v -m755 -d "${pkgdir}/usr/share/man/man1"
+  for file in docs/_build/man/*;do
+      install -v -m644 "$file" "${pkgdir}/usr/share/man/man1/"
+  done
 }
 
 # vim:set ts=2 sw=2 et:
