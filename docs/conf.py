@@ -153,11 +153,11 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('man-main', 'webpub', 'webpub Documentation',
+    ('man-main', 'webpub', 'Process EPUB documents for web publishing',
      [author], 1),
-    ('man-linkfix', 'webpub-linkfix', 'webpub-linkfix Documentation',
+    ('man-linkfix', 'webpub-linkfix', 'Fix site-relative links in the given files',
      [author], 1),
-    ('man-suttaref', 'webpub-suttaref', 'webpub-suttaref Documentation',
+    ('man-suttaref', 'webpub-suttaref', 'Add cross-references to suttas',
      [author], 1),
 ]
 
