@@ -1,0 +1,3 @@
+[submodule "sphinx-click"]
+    path = docs/_ext/sphinx-click
+    url = git://github.com/Balletie/sphinx-click.git
