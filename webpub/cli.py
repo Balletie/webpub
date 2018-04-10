@@ -136,7 +136,7 @@ def linkfix_crossref_common_options(f):
                      type=click.Path(file_okay=False, dir_okay=True,
                                      writable=True, exists=True),
                      help="The output directory to save the files.")(f)
-    f = click.argument('filenames', metavar='INFILE', nargs=-1, required=True,
+    f = click.argument('filenames', metavar='[FILES...]', nargs=-1, required=True,
                        type=click.Path(file_okay=True, dir_okay=False,
                                        readable=True, writable=True,
                                        exists=True))(f)
@@ -149,7 +149,7 @@ def linkfix_crossref_common_options(f):
               " pretended to be in this non-existing subdirectory of the"
               " common root directory that they're in.")
 @click.option('--route', '-r', 'custom_routes', type=(str, str), multiple=True,
-              metavar="<PATH PATH> ...",
+              metavar="<PATH PATH>",
               help="Specifies a custom route. Expects two arguments, and may"
               " be used multiple times.")
 @linkfix_crossref_common_options
