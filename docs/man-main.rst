@@ -57,9 +57,15 @@ different from the reading order, use the :option:`-t` /
 Fallback URL
 ~~~~~~~~~~~~
 
-The fallback URL allows us to check internal absolute links to see if
-they're working. If a broken link was found, an interactive prompt is
-started asking what needs to be done. In this example, all absolute
-links are tested against the root ``/www/`` directory::
+The fallback URL (:option:`-u` / :option:`--fallback-url`) enables
+checking internal absolute links to see if they're working. If a
+broken link was found, an interactive prompt is started asking what
+needs to be done. In this example, all absolute links are tested
+against the root ``/www/`` directory::
 
    webpub -u /www -d books/example_html example.epub
+
+See also
+--------
+
+:manpage:`webpub-linkfix(1)`, :manpage:`webpub-suttaref`
