@@ -68,4 +68,4 @@ against the root ``/www/`` directory::
 See also
 --------
 
-:manpage:`webpub-linkfix(1)`, :manpage:`webpub-suttaref`
+:manpage:`webpub-linkfix(1)`, :manpage:`webpub-suttaref(1)`
