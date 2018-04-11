@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import re
 import itertools as it
 import functools as ft
 import os
@@ -25,6 +26,38 @@ class IntOrTocType(click.ParamType):
             if i < 1:
                 self.fail("Numbers must be greater than 0")
         return i
+
+
+class RichHelpOption(click.Option):
+    rst_regex = r"(?:" \
+                r"\*\*(.+?)\*\*|" \
+                r"\*(.+?)\*|" \
+                r"\`\`(.+?)\`\`|" \
+                r"(?:\:.+?\:)?\`(.+?)\`(?:\:.+?\:)?(?:__)?|" \
+                r"(\w+?)_)"
+
+    def __init__(self, *args, **kwargs):
+        self.rich_help = kwargs.pop('rich_help', None)
+        _help = kwargs.get('help')
+
+        if not self.rich_help:
+            self.rich_help = _help or ''
+        else:
+            kwargs['help'] = self._strip_rst(self.rich_help)
+
+        super().__init__(*args, **kwargs)
+
+    def _strip_rst(self, _help):
+        return re.sub(
+            self.rst_regex,
+            lambda m: ''.join(m.groups('')),
+            _help,
+            re.DOTALL | re.MULTILINE
+        )
+
+
+def rich_help_option(*args, **kwargs):
+    return click.option(*args, cls=RichHelpOption, **kwargs)
 
 
 def make_order(ctx, param, values):
@@ -61,49 +94,54 @@ templates_path = os.path.join(os.path.dirname(__file__), 'templates')
 
 
 def common_options(f):
-    f = click.option('--fallback-url', '-u', metavar="[URL or PATH]",
-                     help="Test against this URL if the internal link is not"
-                     " found locally. If an absolute PATH is given, test"
-                     " against the local filesystem with this as base"
-                     " directory. If the resource exists (i.e. does not 404 as"
-                     " URL), this link won't be fixed. Useful if you have a"
-                     " relative link to a file on a server to which the given"
-                     " files are uploaded.")(f)
-    f = click.option('--verbose', '-v', count=True, expose_value=False,
-                     callback=set_verbosity,
-                     help="Enable verbose output. Use this multiple times to"
-                     " set different verbosity levels (e.g. '-vvv').")(f)
-    f = click.option('--dry-run', '-n', default=False, is_flag=True,
-                     help="Don't write anything, only show what would"
-                     " happen.")(f)
-    f = click.option('--overwrite/--no-overwrite', '-f/ ', default=False,
-                     help="Whether or not to overwrite existing files.")(f)
+    f = rich_help_option('--fallback-url', '-u', metavar="[URL or PATH]",
+                         rich_help="Test against this URL if the internal link"
+                         " is not found locally. If an absolute PATH is given,"
+                         " test against the local filesystem with this as base"
+                         " directory. If the resource exists (i.e. does not"
+                         " ``404`` as URL), this link won't be fixed. Useful"
+                         " if you have a relative link to a file on a server"
+                         " to which the given files are uploaded.")(f)
+    f = rich_help_option('--verbose', '-v', count=True, expose_value=False,
+                         callback=set_verbosity,
+                         rich_help="Enable verbose output. Use this multiple"
+                         " times to set different verbosity levels (e.g."
+                         " ``-vvv``).")(f)
+    f = rich_help_option('--dry-run', '-n', default=False, is_flag=True,
+                         help="Don't write anything, only show what would"
+                         " happen.")(f)
+    f = rich_help_option('--overwrite/--no-overwrite', '-f/ ', default=False,
+                         help="Whether or not to overwrite existing files.")(f)
     f = ensure_ui_context(f)
     return f
 
 
 @click.command(epilog=webpub_epilog)
-@click.option('--directory', '-d', 'output_dir', metavar='DIR',
-              type=click.Path(dir_okay=True, file_okay=False, writable=True),
-              default='_result',
-              help="Output directory (defaults to ./_result/)")
-@click.option('--template', metavar='TEMPLATE',
-              type=click.Path(dir_okay=False, file_okay=True, readable=True),
-              default='default_template.html',
-              help="The template HTML file in which the content is"
-              " inserted for each section (defaults to"
-              " {}/default_template.html).".format(templates_path))
-@click.option('--spine-order', '-o', metavar='N', type=IntOrTocType(),
-              default=None, multiple=True, callback=make_order,
-              help="Reorder the chapter order for next/previous"
-              " buttons. Input must be a positive number or the"
-              " value 'toc' (for 'table of contents').")
-@click.option('--toc-order', '-t', metavar='N', type=IntOrTocType(),
-              default=None, multiple=True, callback=make_order,
-              help="Reorder the order of the entries in the table of"
-              " contents. Input is specified in the same way as with"
-              " --spine-order. The default value, if unspecified, is"
-              " inherited from --spine-order.")
+@rich_help_option('--directory', '-d', 'output_dir', metavar='DIR',
+                  type=click.Path(
+                      dir_okay=True, file_okay=False, writable=True
+                  ),
+                  default='_result',
+                  rich_help="Output directory (defaults to ``./_result/``)")
+@rich_help_option('--template', metavar='TEMPLATE',
+                  type=click.Path(
+                      dir_okay=False, file_okay=True, readable=True
+                  ),
+                  default='default_template.html',
+                  rich_help="The template HTML file in which the content is"
+                  " inserted for each section (defaults to"
+                  " ``{}/default_template.html``).".format(templates_path))
+@rich_help_option('--spine-order', '-o', metavar='N', type=IntOrTocType(),
+                  default=None, multiple=True, callback=make_order,
+                  rich_help="Reorder the chapter order for next/previous"
+                  " buttons. Input must be a positive number or the"
+                  " value ``toc`` (for 'table of contents').")
+@rich_help_option('--toc-order', '-t', metavar='N', type=IntOrTocType(),
+                  default=None, multiple=True, callback=make_order,
+                  rich_help="Reorder the order of the entries in the table of"
+                  " contents. Input is specified in the same way as with"
+                  " :option:`--spine-order`. The default value, if"
+                  " unspecified, is inherited from :option:`--spine-order`.")
 @common_options
 @click.argument('epub_filename', metavar='INFILE',
                 type=click.File('rb'))
@@ -136,7 +174,8 @@ def linkfix_crossref_common_options(f):
                      type=click.Path(file_okay=False, dir_okay=True,
                                      writable=True, exists=True),
                      help="The output directory to save the files.")(f)
-    f = click.argument('filenames', metavar='[FILES...]', nargs=-1, required=True,
+    f = click.argument('filenames', metavar='[FILES...]', nargs=-1,
+                       required=True,
                        type=click.Path(file_okay=True, dir_okay=False,
                                        readable=True, writable=True,
                                        exists=True))(f)
