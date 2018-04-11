@@ -13,8 +13,8 @@ following template variables are available to use:
 ``head`` & ``body``
    The contents of the head and body elements of this page.
 ``prev_url`` & ``next_url``
-   The previous and next page, if any. If there's no previous page
-   (i.e. it's the first page), then this variable is empty.
+   The previous and next page, if any. If there's no previous or next page
+   (i.e. it's the first or last page), then this variable is empty.
 ``toc_url``
    The link to the table of contents page.
 ``src``
