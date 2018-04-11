@@ -32,4 +32,18 @@ rec {
 
     propagatedBuildInputs = [ lxml cssselect dependency_injection cython ];
   };
+
+  sphinx_click = with python.pkgs; buildPythonPackage rec {
+    name = "sphinx-click-${version}";
+    version = "1.1.0";
+
+    doCheck = false;
+
+    src = pkgs.fetchurl {
+      url = "mirror://pypi/s/shpinx-click/sphinx-click-1.1.0.tar.gz";
+      sha256 = "1py42w94345hmdqpabc5wz95y25mhih2x9caim2bqpjbxrajvvqf";
+    };
+
+    propagatedBuildInputs = [ pbr sphinx ];
+  };
 }
