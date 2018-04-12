@@ -64,8 +64,12 @@ default_mime_to_dst_and_handlers = {
                                   guard_dry_run, guard_overwrite, write_out)),
     'text/css': ('./css/', (replace_urls, guard_dry_run, guard_overwrite,
                             write_out)),
-    'image/*': ('./img/', (copy_out,)),
-    '*/*': ('./etc/', (copy_out,))
+    # FIXME: dummy handler is necessary because guard handlers rely on
+    # previous input.
+    'image/*': ('./img/', (lambda: None, guard_dry_run, guard_overwrite,
+                           copy_out,)),
+    '*/*': ('./etc/', (lambda: None, guard_dry_run, guard_overwrite,
+                       copy_out,))
 }
 
 
