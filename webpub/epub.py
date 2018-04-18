@@ -5,7 +5,7 @@ from lxml import etree
 from webpub.transform_document import transform_document
 from webpub.transform_toc import transform_toc
 from webpub.transform import render_template
-from webpub.css import replace_urls
+from webpub.css import replace_urls_epub
 from webpub.handlers import handle_routes, MimetypeRoute
 from webpub.util import (
     reorder, ensure, copy_out, write_out, guard_dry_run, guard_overwrite
@@ -62,7 +62,7 @@ default_mime_to_dst_and_handlers = {
     'application/x-dtbncx+xml': (lambda _: './Contents.html',
                                  (transform_toc, render_template,
                                   guard_dry_run, guard_overwrite, write_out)),
-    'text/css': ('./css/', (replace_urls, guard_dry_run, guard_overwrite,
+    'text/css': ('./css/', (replace_urls_epub, guard_dry_run, guard_overwrite,
                             write_out)),
     # FIXME: dummy handler is necessary because guard handlers rely on
     # previous input.
@@ -107,6 +107,7 @@ def epub_routes(manifest, spine, metadata, context):
         manifest_item = manifest_item[0]
         route = EpubMimetypeRoute(
             manifest_item.attrib['href'],
+            context['output_dir'],
             manifest_item.attrib['media-type']
         )
         yield route
@@ -119,6 +120,7 @@ def epub_routes(manifest, spine, metadata, context):
     for manifest_item in remaining_items:
         yield EpubMimetypeRoute(
             manifest_item.attrib['href'],
+            context['output_dir'],
             manifest_item.attrib['media-type']
         )
 

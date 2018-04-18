@@ -47,8 +47,7 @@ def transform_document(routes, root_dir, epub_zip, filepath, currentpath,
 transform_document.verbose_name = "Apply transformations"
 
 
-def linkfix_document(routes, root_dir, filepath, currentpath, fallback_url):
-    currentpath = routes[filepath]
+def linkfix_document(routes, filepath, currentpath, fallback_url):
     context = locals().copy()
 
     transformation = Transformation(

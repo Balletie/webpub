@@ -168,37 +168,45 @@ def main(context, output_dir, template, spine_order, toc_order, fallback_url,
         webpub.epub.make_webbook(context, epub_zip)
 
 
+def collect_files(ctx, param, path):
+    if os.path.isfile(path):
+        yield os.path.dirname(path), os.path.basename(path)
+    elif os.path.isdir(path):
+        for dirpath, dirnames, filenames in os.walk(path):
+            dirpath = os.path.relpath(dirpath, path)
+            yield from (
+                (path, os.path.join(dirpath, fname)) for fname in filenames
+            )
+
+
 def linkfix_crossref_common_options(f):
     f = common_options(f)
     f = click.option('--directory', '-d', 'output_dir',
                      type=click.Path(file_okay=False, dir_okay=True,
                                      writable=True, exists=True),
                      help="The output directory to save the files.")(f)
-    f = click.argument('filenames', metavar='[FILES...]', nargs=-1,
-                       required=True,
-                       type=click.Path(file_okay=True, dir_okay=False,
+    f = click.argument('filenames', metavar='PATH', nargs=1,
+                       required=True, callback=collect_files,
+                       type=click.Path(file_okay=True, dir_okay=True,
                                        readable=True, writable=True,
                                        exists=True))(f)
     return f
 
 
 @click.command()
-@click.option('--basedir', '-b', metavar="PATH", default='',
-              help="Base directory that all links share. All given files are"
-              " pretended to be in this non-existing subdirectory of the"
-              " common root directory that they're in.")
-@click.option('--route', '-r', 'custom_routes', type=(str, str), multiple=True,
-              metavar="<PATH PATH>",
-              help="Specifies a custom route. Expects two arguments, and may"
-              " be used multiple times.")
+@click.option('--fix-doc-relative', '-r', default=False, is_flag=True,
+              help="Try to fix broken document-relative links by finding the"
+              " closest file with the same filename.")
 @linkfix_crossref_common_options
-def linkfix_cmd(basedir, custom_routes, fallback_url, dry_run, overwrite,
+def linkfix_cmd(fix_doc_relative, fallback_url, dry_run, overwrite,
                 output_dir, filenames):
     """Attempts to fix relative links among the given files.
+    Only root-relative (e.g. /www/a/b/c.html) and optionally
+    document-relative (e.g. ../b/c.html) are considered.
     """
     import webpub.linkfix
-    webpub.linkfix.fixlinks(filenames, fallback_url, dry_run, basedir,
-                            custom_routes, output_dir, overwrite)
+    webpub.linkfix.fixlinks(filenames, fallback_url, dry_run,
+                            output_dir, overwrite)
 
 
 @click.command()

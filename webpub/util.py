@@ -2,7 +2,6 @@ import os
 import shutil
 import itertools as it
 
-import click
 from lxml import html
 
 import webpub
@@ -20,9 +19,9 @@ tostring.verbose_name = "Convert back to string"
 tostring.verbosity = 1
 
 
-def guard_dry_run(input, routes, output_dir, filepath, dry_run):
+def guard_dry_run(input, routes, filepath, dry_run):
     if dry_run:
-        dst = os.path.join(output_dir, routes[filepath])
+        dst = routes[filepath]
         dst = os.path.relpath(dst)
         raise webpub.handlers.AbortHandling("Would write {}".format(dst))
 
@@ -33,8 +32,8 @@ guard_dry_run.verbose_name = "Check if it's a dry-run"
 guard_dry_run.verbosity = 2
 
 
-def guard_overwrite(input, output_dir, filepath, routes, overwrite):
-    dst = os.path.join(output_dir, routes[filepath])
+def guard_overwrite(input, filepath, routes, overwrite):
+    dst = routes[filepath]
     if os.path.exists(dst):
         dst = os.path.relpath(dst)
         if not overwrite:
@@ -50,9 +49,9 @@ guard_overwrite.verbose_name = "Check if file would be overwritten"
 guard_overwrite.verbosity = 2
 
 
-def copy_out(epub_zip, filepath, output_dir, root_dir, routes):
+def copy_out(epub_zip, filepath, root_dir, routes):
     src_zip_path = os.path.join(root_dir, filepath)
-    routed_path = os.path.join(output_dir, routes[filepath])
+    routed_path = routes[filepath]
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with epub_zip.open(src_zip_path, 'r') as src:
@@ -64,8 +63,8 @@ copy_out.verbose_name = "Copy file"
 copy_out.verbosity = 1
 
 
-def write_out(input, filepath, output_dir, routes):
-    routed_path = os.path.join(output_dir, routes[filepath])
+def write_out(input, filepath, routes):
+    routed_path = routes[filepath]
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
@@ -93,4 +92,3 @@ def ensure(result, error_message):
         raise Exception(error_message)
 
     return result[0]
-

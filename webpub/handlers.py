@@ -4,18 +4,23 @@ import mimetypes
 import mimeparse
 import os
 
-from webpub.util import copy_out
 from webpub.ui import echo
 
 
 class Route(object):
-    def __init__(self, src, mimetype=None):
-        self.src = src
+    def __init__(self, src, output_dir=None, mimetype=None):
+        self.src = os.path.normpath(src)
+        self.output_dir = output_dir
         self._mimetype = mimetype
+
+    def get_dst(self):
+        raise NotImplementedError()
 
     @property
     def dst(self):
-        raise NotImplementedError()
+        if self.output_dir is None:
+            return self.get_dst()
+        return os.path.normpath(os.path.join(self.output_dir, self.get_dst()))
 
     @property
     def handlers(self):
@@ -23,20 +28,7 @@ class Route(object):
 
     @property
     def mimetype(self):
-        return self._mimetype or mimetypes.guess_type(self.src)[0]
-
-
-class IdentityRoute(Route):
-    def __init__(self, src, dst, mimetype=None):
-        super().__init__(src, mimetype)
-        self._dst = dst
-
-    @property
-    def dst(self):
-        return self._dst or os.path.basename(self.src)
-
-    def handlers(self):
-        return (copy_out,)
+        return self._mimetype or mimetypes.guess_type(self.src)[0] or '*/*'
 
 
 class MimetypeRoute(Route):
@@ -53,8 +45,7 @@ class MimetypeRoute(Route):
             str_or_tup = mimetype_handlers[str_or_tup]
         return str_or_tup
 
-    @property
-    def dst(self):
+    def get_dst(self):
         dst, _handlers = self.get_handlers()
 
         if callable(dst):
@@ -68,12 +59,14 @@ class MimetypeRoute(Route):
 
 
 class ConstDestMimetypeRoute(MimetypeRoute):
-    def __init__(self, src, dst, mimetype=None):
-        super().__init__(src, mimetype)
-        self._dst = dst
+    def __init__(self, src, root_dir, output_dir=None, mimetype=None):
+        if output_dir is None:
+            output_dir = root_dir
+        super().__init__(os.path.join(root_dir, src), output_dir, mimetype)
+        root_base = os.path.basename(root_dir)
+        self._dst = os.path.join(root_base, src)
 
-    @property
-    def dst(self):
+    def get_dst(self):
         return self._dst
 
     @property
@@ -111,7 +104,7 @@ def _apply_handlers(handlers, context):
             print(str(e))
             break
 
-    del context['input']
+    context.pop('input', None)
 
 
 def handle_routes(routes, context):

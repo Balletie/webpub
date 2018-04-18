@@ -254,7 +254,7 @@ def add_re_namespace(xpath_evaluator):
     )
 
 
-def crossref_document(routes, root_dir, filepath, currentpath, fallback_url):
+def crossref_document(routes, filepath, currentpath, fallback_url):
     context = locals().copy()
 
     transformation = Transformation(
@@ -263,8 +263,7 @@ def crossref_document(routes, root_dir, filepath, currentpath, fallback_url):
         context=context,
     )
 
-    curpath = routes[filepath]
-    with open(curpath) as doc:
+    with open(currentpath) as doc:
         doc_tree = html5.parse(
             doc, treebuilder='lxml',
             namespaceHTMLElements=False
@@ -289,21 +288,17 @@ class CrossRefRoute(ConstDestMimetypeRoute):
 
 
 def cross_ref_routes(filenames, output_dir):
-    for src in filenames:
-        dst = src
-        yield CrossRefRoute(src, dst)
+    for root_dir, src in filenames:
+        yield CrossRefRoute(src, root_dir, output_dir)
 
 
 def cross_ref(filenames, fallback_url, dry_run, output_dir, overwrite):
     if dry_run:
         print("Dry run; no files will be written")
-    filenames = [os.path.realpath(fname) for fname in filenames]
-    root_dir = os.path.commonpath(filenames)
     context = {
         'dry_run': dry_run,
         'overwrite': overwrite,
-        'root_dir': root_dir,
-        'output_dir': output_dir or root_dir,
+        'output_dir': output_dir,
         'fallback_url': fallback_url,
     }
     routes = cross_ref_routes(filenames, output_dir)

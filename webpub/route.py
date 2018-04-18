@@ -33,7 +33,7 @@ def is_absolute(url):
     return is_path(url) and os.path.isabs(url.path)
 
 
-def is_fallback_working(url, root_dir, routed_cur_path, fallback_base_url):
+def is_fallback_working(url, routed_cur_path):
     # Check if it exists on the filesystem
     routed_rel_dir = os.path.dirname(routed_cur_path)
     relpath = os.path.join(routed_rel_dir, url.path)
@@ -47,14 +47,13 @@ def get_route(routes, filedir, path):
     return routes.get(path)
 
 
-def routed_url(filepath, routes, root_dir, old_url_str, fallback_url=None):
+def routed_url(filepath, routes, old_url_str):
     url = urlparse(old_url_str)
     if is_relative(url):
         routed = get_route(routes, os.path.dirname(filepath), url.path)
         routed_cur_path = routes[filepath]
         if routed is None:
-            if not is_fallback_working(
-                    url, root_dir, routed_cur_path, fallback_url):
+            if not is_fallback_working(url, routed_cur_path):
                 print("Broken and unfixable link found: {}".format(old_url_str))
             return old_url_str
         rel_routed = os.path.relpath(routed, os.path.dirname(routed_cur_path))
@@ -188,7 +187,7 @@ def has_absolute_url(element, transformation):
         return False
 
 
-def route_url(routes, filepath, root_dir, element, fallback_url=None):
+def route_url(routes, filepath, element, fallback_url=None):
     old_url = None
     try:
         attrib, old_url = _matched_url(element)
@@ -199,6 +198,6 @@ def route_url(routes, filepath, root_dir, element, fallback_url=None):
         return element
 
     element.attrib[attrib] = routed_url(
-        filepath, routes, root_dir, old_url, fallback_url,
+        filepath, routes, old_url
     )
     return element

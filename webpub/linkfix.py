@@ -1,5 +1,3 @@
-import os
-
 from webpub.transform_document import linkfix_document
 from webpub.css import replace_urls
 from webpub.handlers import handle_routes, ConstDestMimetypeRoute
@@ -20,33 +18,19 @@ class LinkFixRoute(ConstDestMimetypeRoute):
         return linkfix_mime_handlers
 
 
-def linkfix_routes(filenames, basedir, custom_routes, context):
-    for fname in filenames:
-        basename = os.path.basename(fname)
-        old_path = os.path.join(
-            context['root_dir'],
-            os.path.join(basedir, basename)
-        )
-
-        yield LinkFixRoute(old_path, fname)
-
-    for src, dest in custom_routes:
-        yield LinkFixRoute(src, dest)
+def linkfix_routes(filenames, output_dir):
+    for root_dir, fname in filenames:
+        yield LinkFixRoute(fname, root_dir, output_dir)
 
 
-def fixlinks(filenames, fallback_url, dry_run, basedir, custom_routes,
-             output_dir, overwrite):
+def fixlinks(filenames, fallback_url, dry_run, output_dir, overwrite):
     if dry_run:
         print("Dry run; no files will be written")
-    filenames = [os.path.realpath(fname) for fname in filenames]
-    root_dir = os.path.commonpath(filenames)
     context = {
         'dry_run': dry_run,
         'overwrite': overwrite,
-        'root_dir': root_dir,
-        'output_dir': output_dir or root_dir,
+        'output_dir': output_dir or '.',
         'fallback_url': fallback_url,
     }
-    routes = linkfix_routes(filenames, basedir, custom_routes,
-                            context)
+    routes = linkfix_routes(filenames, output_dir)
     handle_routes(routes, context)
