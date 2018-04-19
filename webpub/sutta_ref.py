@@ -2,7 +2,6 @@ from collections import namedtuple
 import functools as ft
 import bisect
 import re
-import os
 
 import html5lib as html5
 import lxml.sax

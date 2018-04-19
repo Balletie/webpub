@@ -2,9 +2,9 @@ import os
 
 from lxml import etree
 
-from webpub.transform_document import transform_document
-from webpub.transform_toc import transform_toc
-from webpub.transform import render_template
+from webpub.epub.transform_document import transform_document
+from webpub.epub.transform_toc import transform_toc
+from webpub.epub.template import render_template
 from webpub.css import replace_urls_epub
 from webpub.handlers import handle_routes, MimetypeRoute
 from webpub.util import (

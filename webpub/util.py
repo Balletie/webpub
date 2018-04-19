@@ -3,6 +3,7 @@ import shutil
 import itertools as it
 
 from lxml import html
+from inxs import Any, MatchesAttributes
 
 import webpub
 
@@ -92,3 +93,7 @@ def ensure(result, error_message):
         raise Exception(error_message)
 
     return result[0]
+
+
+has_link = Any(MatchesAttributes({'href': None}),
+               MatchesAttributes({'src': None}),)

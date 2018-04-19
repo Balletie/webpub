@@ -1,7 +1,38 @@
-from webpub.transform_document import linkfix_document
+import requests
+import html5lib as html5
+from inxs import Rule, Transformation
+
 from webpub.css import replace_urls
 from webpub.handlers import handle_routes, ConstDestMimetypeRoute
-from webpub.util import tostring, write_out, guard_dry_run, guard_overwrite
+from webpub.util import (
+    tostring, write_out, guard_dry_run, guard_overwrite, has_link
+)
+from webpub.route import (
+    route_url, check_and_fix_absolute, has_relative_url, has_absolute_url
+)
+
+
+def linkfix_document(routes, filepath, currentpath, fallback_url):
+    context = locals().copy()
+
+    transformation = Transformation(
+        Rule([has_link, has_relative_url], route_url),
+        Rule([has_link, has_absolute_url], check_and_fix_absolute),
+        context=context,
+    )
+
+    with open(currentpath) as doc:
+        doc_tree = html5.parse(
+            doc, treebuilder='lxml',
+            namespaceHTMLElements=False
+        )
+
+    root = doc_tree.getroot()
+    with requests.Session() as s:
+        return transformation(root, session=s)
+
+
+linkfix_document.verbose_name = "Fix links"
 
 
 linkfix_mime_handlers = {

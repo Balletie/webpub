@@ -5,8 +5,8 @@ from lxml import etree
 from inxs import Rule, Any, MatchesAttributes, Transformation
 import inxs.lib
 
-from .route import route_url
-from .util import reorder
+from webpub.route import route_url
+from webpub.util import reorder
 
 ncx_namespace = {
     'ncx': "http://www.daisy.org/z3986/2005/ncx/",
