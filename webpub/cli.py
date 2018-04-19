@@ -194,11 +194,8 @@ def linkfix_crossref_common_options(f):
 
 
 @click.command()
-@click.option('--fix-doc-relative', '-r', default=False, is_flag=True,
-              help="Try to fix broken document-relative links by finding the"
-              " closest file with the same filename.")
 @linkfix_crossref_common_options
-def linkfix_cmd(fix_doc_relative, fallback_url, dry_run, overwrite,
+def linkfix_cmd(fallback_url, dry_run, overwrite,
                 output_dir, filenames):
     """Attempts to fix relative links among the given files.
     Only root-relative (e.g. /www/a/b/c.html) and optionally
