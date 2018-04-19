@@ -33,9 +33,9 @@ def _apply_to_all(ui_ctx, element, attrib):
 
 
 link_choices = {
-    '1': ('ignore', _ignore),
-    '2': ('remove link', _remove),
-    '3': ('insert new link', _insert_new),
+    'keep': ('keep the (broken) link', _ignore),
+    'rm': ('remove link', _remove),
+    'subst': ('substitute the link with a different link', _insert_new),
 }
 
 

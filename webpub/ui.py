@@ -2,7 +2,7 @@ import click
 
 
 class UserInterfaceContext(object):
-    def __init__(self, verbosity=0, choice='1', apply_to_all=False):
+    def __init__(self, verbosity=0, choice=None, apply_to_all=False):
         self.verbosity = verbosity
         self.choice = choice
         self.apply_to_all = apply_to_all
@@ -40,11 +40,12 @@ def choice_prompt(prompt, apply_all_msg, choices, *args, **kwargs):
     choices['a'] = ('apply default to all', _apply_to_all_choice(choices))
     choices.update(default_choices)
     choice = click.Choice(list(choices.keys()))
+    choice_max_key_len = max(map(len, choice.choices))
     choices_prompt = '\n'.join(
-        k + ': ' + v for k, (v, _) in choices.items()
+        k.ljust(choice_max_key_len) + ': ' + v for k, (v, _) in choices.items()
     )
 
-    default = ui_ctx.choice
+    default = ui_ctx.choice or choice.choices[0]
     value = default
     if not ui_ctx.apply_to_all:
         value = click.prompt(

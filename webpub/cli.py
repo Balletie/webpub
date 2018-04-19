@@ -8,6 +8,8 @@ import zipfile as zf
 import click
 
 from webpub.ui import UserInterfaceContext
+import webpub.linkfix.check
+import webpub.sutta_ref
 
 
 class IntOrTocType(click.ParamType):
@@ -193,8 +195,34 @@ def linkfix_crossref_common_options(f):
     return f
 
 
+def format_action_choice_help(choices):
+    prefix = "If unspecified, an option is chosen interactively" + \
+             " upon each broken link encountered. Possible options: "
+    return prefix + ', '.join(
+        str(i) + ') ' + k + ': ' + help_txt
+        for i, (k, (help_txt, _)) in enumerate(choices.items(), start=1)
+    ) + "."
+
+
+def set_action_choice(ctx, param, value):
+    if value is None:
+        return
+    ui_ctx = ctx.ensure_object(UserInterfaceContext)
+    ui_ctx.choice = value
+    ui_ctx.apply_to_all = True
+
+
 @click.command()
 @linkfix_crossref_common_options
+@click.option('--action',
+              type=click.Choice(
+                  list(webpub.linkfix.check.link_choices)),
+              callback=set_action_choice,
+              expose_value=False,
+              help="The action to take when a broken link was found. " +
+              format_action_choice_help(
+                  webpub.linkfix.check.link_choices
+              ))
 def linkfix_cmd(fallback_url, dry_run, overwrite,
                 output_dir, filenames):
     """Attempts to fix relative links among the given files.
@@ -208,12 +236,20 @@ def linkfix_cmd(fallback_url, dry_run, overwrite,
 
 @click.command()
 @linkfix_crossref_common_options
+@click.option('--action',
+              type=click.Choice(
+                  list(webpub.sutta_ref.sutta_ref_choices)),
+              callback=set_action_choice,
+              expose_value=False,
+              help="The action to take when the link to a sutta is"
+              " broken. " + format_action_choice_help(
+                  webpub.sutta_ref.sutta_ref_choices
+              ))
 def sutta_cross_ref_cmd(fallback_url, dry_run, overwrite, output_dir,
                         filenames):
     """Creates cross-references to suttas. Leaves existing references
     intact. Only affects HTML files.
     """
-    import webpub.sutta_ref
     webpub.sutta_ref.cross_ref(filenames, fallback_url, dry_run, output_dir,
                                overwrite)
 

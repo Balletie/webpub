@@ -106,9 +106,9 @@ def _apply_to_all(ui_ctx, *args, **kwargs):
 
 
 sutta_ref_choices = {
-    '1': ('continue without', _continue),
-    '2': ('insert it anyway', _insert),
-    '3': ('insert manually', _manual_insert),
+    'cont': ('continue without inserting a link', _continue),
+    'ins': ('insert the broken link anyway', _insert),
+    'manual': ('insert a different link manually', _manual_insert),
 }
 
 SuttaRef = namedtuple(
