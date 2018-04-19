@@ -1,6 +1,8 @@
 import os
 import shutil
 import itertools as it
+import functools as ft
+from urllib.parse import urlparse
 
 from lxml import html
 from inxs import Any, MatchesAttributes
@@ -97,3 +99,53 @@ def ensure(result, error_message):
 
 has_link = Any(MatchesAttributes({'href': None}),
                MatchesAttributes({'src': None}),)
+
+
+def matched_url(element):
+    url = None
+    for attrib in ['href', 'src']:
+        url = element.attrib.get(attrib)
+        if url:
+            return attrib, url
+    else:
+        raise ValueError("No URL attribute found on element")
+
+
+def _ensure_url(f):
+    @ft.wraps(f)
+    def wrapped(url_str):
+        if isinstance(url_str, str):
+            return f(urlparse(url_str))
+        return f(url_str)
+    return wrapped
+
+
+@_ensure_url
+def is_path(url):
+    return not url.netloc and not url.scheme and url.path
+
+
+@_ensure_url
+def is_relative(url):
+    return is_path(url) and not os.path.isabs(url.path)
+
+
+@_ensure_url
+def is_absolute(url):
+    return is_path(url) and os.path.isabs(url.path)
+
+
+def has_relative_url(element, transformation):
+    try:
+        attrib, url = matched_url(element)
+        return is_relative(url)
+    except ValueError:
+        return False
+
+
+def has_absolute_url(element, transformation):
+    try:
+        attrib, url = matched_url(element)
+        return is_absolute(url)
+    except ValueError:
+        return False

@@ -10,7 +10,7 @@ from inxs import Transformation, Rule, MatchesXPath
 import requests
 
 from webpub.handlers import handle_routes, ConstDestMimetypeRoute
-from webpub.route import check_link_against_fallback
+from webpub.linkfix.check import check_link_against_fallback
 from webpub.util import guard_dry_run, guard_overwrite, tostring, write_out
 from webpub.ui import echo, choice_prompt
 
@@ -110,7 +110,6 @@ sutta_ref_choices = {
     '2': ('insert it anyway', _insert),
     '3': ('insert manually', _manual_insert),
 }
-
 
 SuttaRef = namedtuple(
     'SuttaRef',

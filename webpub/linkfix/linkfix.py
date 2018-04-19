@@ -5,11 +5,11 @@ from inxs import Rule, Transformation
 from webpub.css import replace_urls
 from webpub.handlers import handle_routes, ConstDestMimetypeRoute
 from webpub.util import (
-    tostring, write_out, guard_dry_run, guard_overwrite, has_link
+    tostring, write_out, guard_dry_run, guard_overwrite, has_link,
+    has_relative_url, has_absolute_url
 )
-from webpub.route import (
-    route_url, check_and_fix_absolute, has_relative_url, has_absolute_url
-)
+from webpub.route import route_url
+from webpub.linkfix.check import check_and_fix_absolute
 
 
 def linkfix_document(routes, filepath, currentpath, fallback_url):
