@@ -1,6 +1,9 @@
 import os
+
 from jinja2 import Environment, ChoiceLoader, PackageLoader, FileSystemLoader
 from lxml import etree
+
+from webpub.route import routed_url
 
 
 jinja2_env = Environment(
@@ -18,14 +21,22 @@ def render_template(template, input, filepath, spine,
     prev_src = spine[spine_index - 1] if spine_index > 0 else None
     next_src = spine[spine_index + 1] if spine_index < len(spine) - 1 else None
     context = {
-        'prev_url': routes.get(prev_src, None) if prev_src else None,
-        'next_url': routes.get(next_src, None) if next_src else None,
-        'toc_url': routes.get(toc_src, None),
+        'prev_url': prev_src,
+        'next_url': next_src,
+        'toc_url': toc_src,
         'src': filepath,
         'meta_title': meta_title,
         'meta_author': meta_author,
         'section_title': section_title,
     }
+    # Relativize links to current filepath
+    filedir = os.path.dirname(filepath)
+    for src_k in ('prev_url', 'next_url', 'toc_url'):
+        src = context[src_k]
+        if src:
+            src = routed_url(filepath, routes, os.path.relpath(src, filedir))
+        context[src_k] = src
+
     for tag in ('head', 'body'):
         context[tag] = ''.join(
             etree.tostring(el, encoding='unicode')
