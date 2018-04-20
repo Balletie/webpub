@@ -18,10 +18,10 @@
         <div id="content">
             {{body}}
             <div id="nextbutton">
+                <a href="{{toc_url}}" class="next"><img src="/images/actions/ToC_button.png" title="Table of Contents"/></a>
                 {% if next_url %}
                 <a href="{{next_url}}" class="next"><img src="/images/actions/go-next-button2.png" title="Next page"/></a>
                 {% endif %}
-                <a href="{{toc_url}}" class="next"><img src="/images/actions/ToC_button.png" title="Table of Contents"/></a>
             </div>
         </div><!--end:content-->
         <!--#include virtual="/php/footer.html" -->
