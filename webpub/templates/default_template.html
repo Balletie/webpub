@@ -19,9 +19,9 @@
             {{body}}
             <div id="nextbutton">
                 {% if next_url %}
-                <img src="/images/actions/go-next-button2.png" title="Next page" href="{{next_url}}" class="next"/>
+                <a href="{{toc_url}}"><img src="/images/actions/go-next-button2.png" title="Next page" class="next"/></a>
                 {% endif %}
-                <img src="/images/actions/ToC_button.png" title="Table of Contents" href="{{toc_url}}" class="next"/>
+                <a href="{{toc_url}}"><img src="/images/actions/ToC_button.png" title="Table of Contents" class="next"/></a>
             </div>
         </div><!--end:content-->
         <!--#include virtual="/php/footer.html" -->
