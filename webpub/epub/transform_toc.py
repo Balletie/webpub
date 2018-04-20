@@ -5,7 +5,7 @@ from lxml import etree
 from inxs import Rule, Any, MatchesAttributes, Transformation
 import inxs.lib
 
-from webpub.route import route_url
+from webpub.route import route_url, routed_url
 from webpub.util import reorder
 
 ncx_namespace = {
@@ -51,7 +51,11 @@ def make_toc_tree(root):
 
 def make_toc(root, toc_order, filepath, routes, elmaker):
     root = root.xpath('./ncx:navMap', namespaces=ncx_namespace)[0]
-    toc_self_entry = TocEntry('Table of Contents', routes[filepath], [])
+    toc_self_entry = TocEntry(
+        'Table of Contents',
+        routed_url(filepath, routes, filepath),
+        []
+    )
     toc_entries = [toc_self_entry] + make_toc_tree(root)
     return reorder(toc_entries, toc_order)
 
