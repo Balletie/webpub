@@ -1,5 +1,5 @@
 import requests
-import html5lib as html5
+import html5_parser as html5
 from inxs import Rule, Transformation
 
 from webpub.css import replace_urls
@@ -21,15 +21,11 @@ def linkfix_document(routes, filepath, currentpath, fallback_url):
         context=context,
     )
 
-    with open(currentpath) as doc:
-        doc_tree = html5.parse(
-            doc, treebuilder='lxml',
-            namespaceHTMLElements=False
-        )
+    with open(currentpath, mode='rb') as doc:
+        doc_tree = html5.parse(doc.read(), fallback_encoding='utf-8')
 
-    root = doc_tree.getroot()
     with requests.Session() as s:
-        return transformation(root, session=s)
+        return transformation(doc_tree, session=s)
 
 
 linkfix_document.verbose_name = "Fix links"

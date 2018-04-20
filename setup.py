@@ -18,7 +18,7 @@ setup(
     },
     install_requires=[
         'lxml',
-        'html5lib',
+        'html5-parser',
         'inxs',
         'click',
         'jinja2',

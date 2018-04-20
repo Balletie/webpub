@@ -1,6 +1,6 @@
 import os
 from jinja2 import Environment, ChoiceLoader, PackageLoader, FileSystemLoader
-from lxml import html
+from lxml import etree
 
 
 jinja2_env = Environment(
@@ -28,7 +28,7 @@ def render_template(template, input, filepath, spine,
     }
     for tag in ('head', 'body'):
         context[tag] = ''.join(
-            html.tostring(el, encoding='unicode')
+            etree.tostring(el, encoding='unicode')
             for el in input.find(tag).iterchildren()
         )
     template = jinja2_env.get_template(template)

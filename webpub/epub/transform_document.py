@@ -1,7 +1,7 @@
 import os
 
 import requests
-import html5lib as html5
+import html5_parser as html5
 from inxs import (
     lxml_utils, Rule, MatchesXPath, Transformation
 )
@@ -31,14 +31,10 @@ def transform_document(routes, root_dir, epub_zip, filepath, currentpath,
     )
 
     with epub_zip.open(os.path.join(root_dir, filepath)) as doc_xml:
-        doc_tree = html5.parse(
-            doc_xml, treebuilder='lxml',
-            default_encoding='utf-8', namespaceHTMLElements=False
-        )
+        doc_tree = html5.parse(doc_xml.read(), fallback_encoding='utf-8')
 
-    root = doc_tree.getroot()
     with requests.Session() as s:
-        return transformation(root, session=s)
+        return transformation(doc_tree, session=s)
 
 
 transform_document.verbose_name = "Apply transformations"
