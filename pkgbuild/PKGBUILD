@@ -19,7 +19,7 @@ license=('unknown')
 groups=()
 depends=( 'python'
           'python-lxml'
-          'python-html5lib'
+          'python-html5-parser'
           'python-webencodings'
           'python-requests'
           'python-chardet'
