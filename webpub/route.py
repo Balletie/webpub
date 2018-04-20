@@ -18,14 +18,18 @@ def get_route(routes, filedir, path):
     return routes.get(path)
 
 
-def routed_url(filepath, routes, old_url_str):
+def routed_url(filepath, routes, old_url_str, sourceline=None):
     url = urlparse(old_url_str)
     if webpub.util.is_relative(url):
         routed = get_route(routes, os.path.dirname(filepath), url.path)
         routed_cur_path = routes[filepath]
         if routed is None:
             if not is_fallback_working(url, routed_cur_path):
-                print("Broken and unfixable link found: {}".format(old_url_str))
+                webpub.ui.echo("{}:{} Broken and unfixable link found: {}".format(
+                    os.path.relpath(filepath),
+                    str(sourceline) + ':' if sourceline else '',
+                    old_url_str,
+                ))
             return old_url_str
         rel_routed = os.path.relpath(routed, os.path.dirname(routed_cur_path))
 
@@ -54,6 +58,6 @@ def route_url(routes, filepath, element, fallback_url=None):
         return element
 
     element.attrib[attrib] = routed_url(
-        filepath, routes, old_url
+        filepath, routes, old_url, element.sourceline
     )
     return element
