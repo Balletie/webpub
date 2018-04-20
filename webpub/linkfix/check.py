@@ -74,7 +74,7 @@ def check_and_fix_absolute(element, session, currentpath, fallback_url=None):
     if not webpub.util.is_absolute(old_url):
         return element
 
-    message = "In file {}:\nBroken link".format(os.path.relpath(currentpath))
+    message = "{}:{}: Broken link".format(os.path.relpath(currentpath), element.sourceline)
     while element is not None:
         old_url = element.attrib[attrib]
         old_url = urlparse(old_url)
