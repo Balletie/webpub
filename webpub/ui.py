@@ -42,7 +42,7 @@ def choice_prompt(prompt, apply_all_msg, choices, *args, **kwargs):
     choice = click.Choice(list(choices.keys()))
     choice_max_key_len = max(map(len, choice.choices))
     choices_prompt = '\n'.join(
-        k.ljust(choice_max_key_len) + ': ' + v for k, (v, _) in choices.items()
+        k.ljust(choice_max_key_len) + ' (' + v  + ')' for k, (v, _) in choices.items()
     )
 
     default = ui_ctx.choice or choice.choices[0]
