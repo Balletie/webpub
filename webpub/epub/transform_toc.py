@@ -20,11 +20,14 @@ def set_titles(element, src_to_title):
     src_to_title[src] = title
 
 
-def make_toc_skeleton(context, routes, section_title, elmaker):
+def make_toc_skeleton(context, filepath, routes, section_title, elmaker):
     context.html = elmaker.html(
         elmaker.head(*[
-            elmaker.link(item, rel="stylesheet", type="text/css")
-            for item in routes.values() if item.endswith('.css')
+            elmaker.link(
+                href=routed_url(filepath, routes, item),
+                rel="stylesheet", type="text/css"
+            )
+            for item in routes.keys() if item.endswith('.css')
         ]),
         elmaker.body(
             elmaker.div(
