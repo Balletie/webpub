@@ -51,8 +51,6 @@ def linkfix_routes(filenames, output_dir):
 
 
 def fixlinks(filenames, fallback_url, dry_run, output_dir, overwrite):
-    if dry_run:
-        print("Dry run; no files will be written")
     context = {
         'dry_run': dry_run,
         'overwrite': overwrite,

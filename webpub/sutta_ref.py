@@ -287,8 +287,6 @@ def cross_ref_routes(filenames, output_dir):
 
 
 def cross_ref(filenames, fallback_url, dry_run, output_dir, overwrite):
-    if dry_run:
-        print("Dry run; no files will be written")
     context = {
         'dry_run': dry_run,
         'overwrite': overwrite,

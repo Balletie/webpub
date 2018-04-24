@@ -86,6 +86,13 @@ def set_verbosity(ctx, param, value):
     setattr(ui_ctx, 'verbosity', value)
 
 
+def dry_run_msg(ctx, param, value):
+    if value:
+        print("Dry run; no files will be written.")
+        ctx.call_on_close(lambda: print("Dry run; no files were written."))
+    return value
+
+
 webpub_epilog = """The --spine-order and --toc-order are specified multiple times to
 determine the order. For example, '-o 2 -o toc -o 1' first puts the
 second document, then the generated Table of Contents, then the first
@@ -110,6 +117,7 @@ def common_options(f):
                          " times to set different verbosity levels (e.g."
                          " ``-vvv``).")(f)
     f = rich_help_option('--dry-run', '-n', default=False, is_flag=True,
+                         callback=dry_run_msg,
                          help="Don't write anything, only show what would"
                          " happen.")(f)
     f = rich_help_option('--overwrite/--no-overwrite', '-f/ ', default=False,
