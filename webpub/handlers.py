@@ -77,6 +77,11 @@ class ConstDestMimetypeRoute(MimetypeRoute):
 class AbortHandling(Exception):
     """Aborts handlers."""
 
+    def __init__(self, message, verbosity=0):
+        super().__init__(message)
+
+        self.verbosity = verbosity
+
 
 class SkipHandler(Exception):
     """Skips the current handler and continues to the next one."""
@@ -101,7 +106,7 @@ def _apply_handlers(handlers, context):
         except SkipHandler:
             continue
         except AbortHandling as e:
-            print(str(e))
+            echo(str(e), verbosity=e.verbosity)
             break
 
     context.pop('input', None)

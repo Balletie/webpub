@@ -26,7 +26,9 @@ def guard_dry_run(input, routes, filepath, dry_run):
     if dry_run:
         dst = routes[filepath]
         dst = os.path.relpath(dst)
-        raise webpub.handlers.AbortHandling("Would write {}".format(dst))
+        raise webpub.handlers.AbortHandling(
+            "Would write {}".format(dst), verbosity=1
+        )
 
     return input
 
