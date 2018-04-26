@@ -6,18 +6,16 @@ from webpub.css import replace_urls
 from webpub.handlers import handle_routes, ConstDestMimetypeRoute
 from webpub.util import (
     tostring, write_out, guard_dry_run, guard_overwrite, has_link,
-    has_relative_url, has_absolute_url
+    has_path_url
 )
-from webpub.route import route_url
-from webpub.linkfix.check import check_and_fix_absolute
+from webpub.linkfix.check import check_and_fix_link
 
 
 def linkfix_document(routes, filepath, currentpath, fallback_url):
     context = locals().copy()
 
     transformation = Transformation(
-        Rule([has_link, has_relative_url], route_url),
-        Rule([has_link, has_absolute_url], check_and_fix_absolute),
+        Rule([has_link, has_path_url], check_and_fix_link),
         context=context,
     )
 

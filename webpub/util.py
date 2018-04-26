@@ -137,6 +137,14 @@ def is_absolute(url):
     return is_path(url) and os.path.isabs(url.path)
 
 
+def has_path_url(element, transformation):
+    try:
+        attrib, url = matched_url(element)
+        return is_path(url)
+    except ValueError:
+        return False
+
+
 def has_relative_url(element, transformation):
     try:
         attrib, url = matched_url(element)

@@ -136,20 +136,17 @@ class SuttaRefContentHandler(ContentHandler, object):
     def get_sutta_ref_url(self, ref):
         url_format = self.get_url_format_callable(ref)
         url = url_format()
-        message = "In file {}:\nSutta link not found".format(
-            self.context.currentpath
-        )
+        message = "Sutta link not found"
         while url is not None:
             try:
-                res = check_link_against_fallback(
+                working, link = check_link_against_fallback(
                     url, self.context.session, self.context.fallback_url
                 )
             except ValueError:
                 return url
 
-            if res is True:
+            if working:
                 return url
-            link = res
 
             echo("{}: {}".format(message, link))
             choice = choice_prompt(
@@ -159,7 +156,6 @@ class SuttaRefContentHandler(ContentHandler, object):
             if choice is True:
                 return url
             url = choice
-            message = "Sutta link not found"
 
     def characters(self, data):
         # If we're inside a link, don't substitute.

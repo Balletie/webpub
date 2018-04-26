@@ -4,6 +4,8 @@ import mimetypes
 import mimeparse
 import os
 
+import click
+
 from webpub.ui import echo
 
 
@@ -87,10 +89,8 @@ class SkipHandler(Exception):
 
 
 def _apply_handlers(handlers, context):
-    echo(
-        "\nStart handling {}.".format(os.path.relpath(context['filepath'])),
-        verbosity=1
-    )
+    if handlers:
+        echo(click.style(os.path.relpath(context['filepath']), fg='yellow'))
     for handler in handlers:
         kwargs = dependency_injection.resolve_dependencies(
             handler, context

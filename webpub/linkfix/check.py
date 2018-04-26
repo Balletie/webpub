@@ -1,5 +1,5 @@
 import os
-from urllib.parse import urlparse, urljoin, urldefrag
+from urllib.parse import urlparse, urlunparse, urljoin, urldefrag
 
 import requests
 import click
@@ -39,58 +39,82 @@ link_choices = {
 }
 
 
+def _check_link_against_path_fallback(url_path, session, fallback_url):
+    url_path = urldefrag(url_path).url
+    new_path = os.path.normpath(fallback_url + '/' + url_path)
+    webpub.ui.echo(
+        "Checking path: {}".format(new_path), verbosity=2
+    )
+    if os.path.exists(new_path):
+        return (True, new_path, "File exists")
+    return (False, new_path, "File does not exist")
+
+
+def _check_link_against_url_fallback(url_path, session, fallback_url):
+    check_url = urljoin(fallback_url, url_path)
+    webpub.ui.echo(
+        "Checking URL: {}".format(check_url), verbosity=2
+    )
+    response = session.head(check_url, allow_redirects=True)
+    msg = "Status code: " + str(response.status_code)
+    if response.status_code == requests.codes.ok:
+        return (True, check_url, msg)
+    return (False, check_url, msg)
+
+
 def check_link_against_fallback(url_path, session, fallback_url=None):
     link = fallback_url
+    link_checker = _check_link_against_url_fallback
+    msg = "N/A"
+
     if fallback_url is None:
         raise ValueError("Tried checking without fallback url")
-    elif webpub.util.is_path(fallback_url):
-        url_path = urldefrag(url_path).url
-        new_path = os.path.normpath(fallback_url + '/' + url_path)
-        link = new_path
-        webpub.ui.echo(
-            "Checking link: {}".format(new_path), verbosity=2
-        )
-        if os.path.exists(new_path):
-            return True
-    else:
-        check_url = urljoin(fallback_url, url_path)
-        link = check_url
-        webpub.ui.echo(
-            "Checking link: {}".format(check_url), verbosity=2
-        )
-        response = session.head(check_url, allow_redirects=True)
-        if response.status_code == requests.codes.ok:
-            return True
-    return link
+
+    if webpub.util.is_path(fallback_url):
+        link_checker = _check_link_against_path_fallback
+
+    working, link, msg = link_checker(url_path, session, fallback_url)
+
+    result_status = working and "OK   " or "ERROR"
+    webpub.ui.echo("{status} {link} ({msg})".format(
+        status=click.style(result_status, fg=working and 'green' or 'red'),
+        link=link,
+        msg=msg,
+    ), verbosity=int(working))
+    return (working, link)
 
 
-def check_and_fix_absolute(element, session, currentpath, fallback_url=None):
+def check_and_fix_link(element, session, currentpath, fallback_url=None):
     old_url = None
     try:
         attrib, old_url = webpub.util.matched_url(element)
     except ValueError:
         return element
 
-    if not webpub.util.is_absolute(old_url):
-        return element
-
-    message = "{}:{}: Broken link".format(os.path.relpath(currentpath), element.sourceline)
+    message = "At {}:{}".format(
+        os.path.relpath(currentpath), element.sourceline
+    )
     while element is not None:
         old_url = element.attrib[attrib]
         old_url = urlparse(old_url)
 
+        if not webpub.util.is_path(old_url):
+            return element
+
+        if webpub.util.is_relative(old_url):
+            fallback_url = os.path.dirname(currentpath)
+
         try:
-            res = check_link_against_fallback(
+            working, _link = check_link_against_fallback(
                 old_url.path, session, fallback_url
             )
         except ValueError:
             return element
 
-        if res is True:
+        if working:
             return element
-        link = res
 
-        webpub.ui.echo("{}: {}".format(message, link))
+        webpub.ui.echo("{}: {}".format(message, urlunparse(old_url)))
         element = webpub.ui.choice_prompt(
             "Link is broken, what should I do?", "Link is broken, ",
             link_choices, element, attrib,
