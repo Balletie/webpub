@@ -63,8 +63,7 @@ class ConstDestMimetypeRoute(MimetypeRoute):
         if output_dir is None:
             output_dir = root_dir
         super().__init__(os.path.join(root_dir, src), output_dir, mimetype)
-        root_base = os.path.basename(root_dir)
-        self._dst = os.path.join(root_base, src)
+        self._dst = src
 
     def get_dst(self):
         return self._dst

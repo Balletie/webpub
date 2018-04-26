@@ -45,17 +45,17 @@ class LinkFixRoute(ConstDestMimetypeRoute):
         return linkfix_mime_handlers
 
 
-def linkfix_routes(filenames, output_dir):
+def linkfix_routes(filenames):
     for root_dir, fname in filenames:
-        yield LinkFixRoute(fname, root_dir, output_dir)
+        yield LinkFixRoute(fname, root_dir)
 
 
-def fixlinks(filenames, fallback_url, dry_run, output_dir, overwrite):
+def fixlinks(filenames, fallback_url, dry_run, overwrite):
     context = {
         'dry_run': dry_run,
         'overwrite': overwrite,
-        'output_dir': output_dir or '.',
+        'output_dir': '.',
         'fallback_url': fallback_url,
     }
-    routes = linkfix_routes(filenames, output_dir)
+    routes = linkfix_routes(filenames)
     handle_routes(routes, context)

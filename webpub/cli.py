@@ -191,10 +191,6 @@ def collect_files(ctx, param, path):
 
 def linkfix_crossref_common_options(f):
     f = common_options(f)
-    f = click.option('--directory', '-d', 'output_dir',
-                     type=click.Path(file_okay=False, dir_okay=True,
-                                     writable=True, exists=True),
-                     help="The output directory to save the files.")(f)
     f = click.argument('filenames', metavar='PATH', nargs=1,
                        required=True, callback=collect_files,
                        type=click.Path(file_okay=True, dir_okay=True,
@@ -231,15 +227,13 @@ def set_action_choice(ctx, param, value):
               format_action_choice_help(
                   webpub.linkfix.check.link_choices
               ))
-def linkfix_cmd(fallback_url, dry_run, overwrite,
-                output_dir, filenames):
+def linkfix_cmd(fallback_url, dry_run, overwrite, filenames):
     """Attempts to fix relative links among the given files.
     Only root-relative (e.g. /www/a/b/c.html) and optionally
     document-relative (e.g. ../b/c.html) are considered.
     """
     import webpub.linkfix
-    webpub.linkfix.fixlinks(filenames, fallback_url, dry_run,
-                            output_dir, overwrite)
+    webpub.linkfix.fixlinks(filenames, fallback_url, dry_run, overwrite)
 
 
 @click.command()
@@ -253,13 +247,11 @@ def linkfix_cmd(fallback_url, dry_run, overwrite,
               " broken. " + format_action_choice_help(
                   webpub.sutta_ref.sutta_ref_choices
               ))
-def sutta_cross_ref_cmd(fallback_url, dry_run, overwrite, output_dir,
-                        filenames):
+def sutta_cross_ref_cmd(fallback_url, dry_run, overwrite, filenames):
     """Creates cross-references to suttas. Leaves existing references
     intact. Only affects HTML files.
     """
-    webpub.sutta_ref.cross_ref(filenames, fallback_url, dry_run, output_dir,
-                               overwrite)
+    webpub.sutta_ref.cross_ref(filenames, fallback_url, dry_run, overwrite)
 
 
 if __name__ == '__main__':

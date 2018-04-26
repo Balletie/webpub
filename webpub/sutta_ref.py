@@ -281,17 +281,17 @@ class CrossRefRoute(ConstDestMimetypeRoute):
         return linkfix_mime_handlers
 
 
-def cross_ref_routes(filenames, output_dir):
+def cross_ref_routes(filenames):
     for root_dir, src in filenames:
-        yield CrossRefRoute(src, root_dir, output_dir)
+        yield CrossRefRoute(src, root_dir)
 
 
-def cross_ref(filenames, fallback_url, dry_run, output_dir, overwrite):
+def cross_ref(filenames, fallback_url, dry_run, overwrite):
     context = {
         'dry_run': dry_run,
         'overwrite': overwrite,
-        'output_dir': output_dir,
+        'output_dir': '.',
         'fallback_url': fallback_url,
     }
-    routes = cross_ref_routes(filenames, output_dir)
+    routes = cross_ref_routes(filenames)
     handle_routes(routes, context)
