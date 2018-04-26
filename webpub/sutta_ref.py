@@ -60,7 +60,7 @@ sutta_abbrev_urls = {
     'AN': '/suttas/AN/AN{subsection}{sep}{text}.html',
     'MN': '/suttas/MN/MN{text}.html',
     'SN': '/suttas/SN/SN{subsection}{sep}{text}.html',
-    'DN': '/suttas/DN/DN{text}.html',
+    'DN': '/suttas/DN/DN{text:0>2}.html',
     'Dhp': dhp_reference,
     'Iti': '/suttas/KN/Iti/iti{text}.html',
     'Khp': '/suttas/KN/Khp/khp{text}.html',
