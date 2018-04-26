@@ -55,12 +55,14 @@ build() {
 package() {
   cd "$srcdir/webpub"
   PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps dependency-injection git+https://github.com/Balletie/inxs.git
+
   python setup.py bdist_wheel
 
   pushd dist
   PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir/" --ignore-installed --no-deps *.whl 
   popd
 
+  rm "${pkgdir}/usr/bin/inxs"
   install -v -m755 -d "${pkgdir}/usr/share/man/man1"
   for file in docs/_build/man/*;do
       install -v -m644 "$file" "${pkgdir}/usr/share/man/man1/"
