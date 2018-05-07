@@ -33,7 +33,7 @@ class GlobalStats(object):
         self.statistics = defaultdict(set)
         for stat in include:
             self.include(stat)
-        self.exclude = exclude[:]
+        self.excluded = exclude[:]
 
     @classmethod
     def register_statistic_formatter(cls, stat, formatter):
@@ -50,10 +50,10 @@ class GlobalStats(object):
 
     def exclude(self, stat):
         self.statistics.pop(stat, None)
-        self.exclude.append(stat)
+        self.excluded.append(stat)
 
     def add(self, stat, value):
-        if stat not in self.exclude:
+        if stat not in self.excluded:
             self.statistics[stat].add(value)
 
     def scope(self, src):
