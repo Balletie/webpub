@@ -18,7 +18,7 @@ def remove_from_tree(element):
 
 
 def transform_document(routes, root_dir, epub_zip, filepath, currentpath,
-                       fallback_url):
+                       stats, fallback_url):
     context = locals().copy()
     context.pop('epub_zip', None)
 

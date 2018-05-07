@@ -10,6 +10,7 @@ from webpub.handlers import handle_routes, MimetypeRoute
 from webpub.util import (
     reorder, ensure, copy_out, write_out, guard_dry_run, guard_overwrite
 )
+from webpub.stats import global_stats
 
 
 ocf_namespace = {
@@ -157,6 +158,8 @@ def make_webbook(cli_context, epub_zip):
     metadata = ensure(metadata, "No metadata section found in EPUB package.")
     manifest = ensure(manifest, "No manifest section found in EPUB package.")
     spine = ensure(spine, "No spine section found in EPUB package.")
+
+    global_stats.exclude('changed')
 
     context = {
         'root_dir': root_dir,

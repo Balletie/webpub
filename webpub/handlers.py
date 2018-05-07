@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, ChainMap
 import dependency_injection
 import mimetypes
 import mimeparse
@@ -7,6 +7,7 @@ import os
 import click
 
 from webpub.ui import echo
+from webpub.stats import global_stats
 
 
 class Route(object):
@@ -89,8 +90,7 @@ class SkipHandler(Exception):
 
 
 def _apply_handlers(handlers, context):
-    if handlers:
-        echo(click.style(os.path.relpath(context['filepath']), fg='yellow'))
+    echo(click.style(os.path.relpath(context['filepath']), fg='yellow'))
     for handler in handlers:
         kwargs = dependency_injection.resolve_dependencies(
             handler, context
@@ -112,6 +112,7 @@ def _apply_handlers(handlers, context):
 
 
 def handle_routes(routes, context):
+    context.setdefault('global_stats', global_stats)
     context.setdefault('routes', {})
     context.setdefault('src_to_title', {})
     handlers_with_input = OrderedDict()
@@ -122,8 +123,15 @@ def handle_routes(routes, context):
         handlers_with_input.setdefault(handlers, []).append(src)
 
     for handlers, srcs in handlers_with_input.items():
+        if not handlers:
+            continue
         for src in srcs:
-            context['filepath'] = src
-            context['currentpath'] = src
-            context['section_title'] = context['src_to_title'].get(src, '')
-            _apply_handlers(handlers, context)
+            with global_stats.scope(src) as file_stats:
+                local_context = {
+                    'filepath': src,
+                    'currentpath': src,
+                    'section_title': context['src_to_title'].get(src, ''),
+                    'stats': file_stats,
+                }
+                full_context = ChainMap(local_context, context)
+                _apply_handlers(handlers, full_context)

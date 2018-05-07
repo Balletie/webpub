@@ -7,9 +7,10 @@ import zipfile as zf
 
 import click
 
-from webpub.ui import UserInterfaceContext
+from webpub.ui import UserInterfaceContext, echo
 import webpub.linkfix.check
 import webpub.sutta_ref
+import webpub.stats
 
 
 class IntOrTocType(click.ParamType):
@@ -93,6 +94,15 @@ def dry_run_msg(ctx, param, value):
     return value
 
 
+def show_stats_on_close(f):
+    @ft.wraps(f)
+    def wrapper(*args, **kwargs):
+        ctx = click.get_current_context()
+        ctx.call_on_close(lambda: echo(webpub.stats.format_summary()))
+        return f(*args, **kwargs)
+    return wrapper
+
+
 webpub_epilog = """The --spine-order and --toc-order are specified multiple times to
 determine the order. For example, '-o 2 -o toc -o 1' first puts the
 second document, then the generated Table of Contents, then the first
@@ -123,6 +133,7 @@ def common_options(f):
     f = rich_help_option('--overwrite/--no-overwrite', '-f/ ', default=False,
                          help="Whether or not to overwrite existing files.")(f)
     f = ensure_ui_context(f)
+    f = show_stats_on_close(f)
     return f
 
 

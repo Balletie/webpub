@@ -11,7 +11,9 @@ import requests
 
 from webpub.handlers import handle_routes, ConstDestMimetypeRoute
 from webpub.linkfix.check import check_link_against_fallback
-from webpub.util import guard_dry_run, guard_overwrite, tostring, write_out
+from webpub.util import (
+    guard_unchanged, guard_dry_run, guard_overwrite, tostring, write_out
+)
 from webpub.ui import echo, choice_prompt
 
 
@@ -45,8 +47,10 @@ dhp_last_text_numbers = [
 ]
 
 
-def _manual_insert(ui_context, ref):
-    return input('Enter cross reference link to "{}": '.format(ref.full_match))
+def _manual_insert(ui_context, ref, stats):
+    link = input('Enter cross reference link to "{}": '.format(ref.full_match))
+    stats.set_changed()
+    return link
 
 
 def dhp_reference(context, ref):
@@ -93,9 +97,10 @@ def _continue(ui_ctx, *args, **kwargs):
     return None
 
 
-def _insert(ui_ctx, *args, **kwargs):
+def _insert(ui_ctx, ref, stats):
     # get_sutta_ref_url checks if True is returned, and returns URL
     # without checking it.
+    stats.set_changed()
     return True
 
 
@@ -151,7 +156,7 @@ class SuttaRefContentHandler(ContentHandler, object):
             echo("{}: {}".format(message, link))
             choice = choice_prompt(
                 'What should I do?', 'Sutta not found, ',
-                sutta_ref_choices, ref
+                sutta_ref_choices, ref, self.context.stats
             )
             if choice is True:
                 return url
@@ -248,8 +253,9 @@ def add_re_namespace(xpath_evaluator):
     )
 
 
-def crossref_document(routes, filepath, currentpath, fallback_url):
+def crossref_document(routes, filepath, currentpath, stats, fallback_url):
     context = locals().copy()
+    context.pop('stats', None)
 
     transformation = Transformation(
         add_re_namespace,
@@ -261,12 +267,12 @@ def crossref_document(routes, filepath, currentpath, fallback_url):
         doc_tree = html5.parse(doc.read(), fallback_encoding='utf-8')
 
     with requests.Session() as s:
-        return transformation(doc_tree, session=s)
+        return transformation(doc_tree, session=s, stats=stats)
 
 
 linkfix_mime_handlers = {
-    'text/html': (crossref_document, guard_dry_run, guard_overwrite,
-                  tostring, write_out),
+    'text/html': (crossref_document, guard_unchanged, guard_dry_run,
+                  guard_overwrite, tostring, write_out),
     'application/xhtml+xml': 'text/html',
     '*/*': (),
 }

@@ -22,6 +22,20 @@ tostring.verbose_name = "Convert back to string"
 tostring.verbosity = 1
 
 
+def guard_unchanged(input, routes, stats, filepath):
+    if not stats.has_changed():
+        dst = routes[filepath]
+        dst = os.path.relpath(dst)
+        raise webpub.handlers.AbortHandling(
+            "File {} not changed, not writing".format(dst), verbosity=1
+        )
+    return input
+
+
+guard_unchanged.verbose_name = "Check if file was changed"
+guard_unchanged.verbosity = 2
+
+
 def guard_dry_run(input, routes, filepath, dry_run):
     if dry_run:
         dst = routes[filepath]
@@ -54,7 +68,7 @@ guard_overwrite.verbose_name = "Check if file would be overwritten"
 guard_overwrite.verbosity = 2
 
 
-def copy_out(epub_zip, filepath, root_dir, routes):
+def copy_out(epub_zip, filepath, root_dir, routes, stats):
     src_zip_path = os.path.join(root_dir, filepath)
     routed_path = routes[filepath]
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
@@ -62,18 +76,20 @@ def copy_out(epub_zip, filepath, root_dir, routes):
     with epub_zip.open(src_zip_path, 'r') as src:
         with open(routed_path, 'wb') as dst:
             shutil.copyfileobj(src, dst, 8192)
+    stats.set('saved')
 
 
 copy_out.verbose_name = "Copy file"
 copy_out.verbosity = 1
 
 
-def write_out(input, filepath, routes):
+def write_out(input, filepath, routes, stats):
     routed_path = routes[filepath]
     os.makedirs(os.path.dirname(routed_path), exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
         dst.write(input)
+    stats.set('saved')
 
 
 write_out.verbose_name = "Write result to file"
