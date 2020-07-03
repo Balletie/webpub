@@ -2,7 +2,7 @@
 
 with pkgs;
 rec {
-  python = python36;
+  python = python38;
 
   dependency_injection = with python.pkgs; buildPythonPackage rec {
     name = "dependency-injection-${version}";
@@ -24,8 +24,8 @@ rec {
 
     src = pkgs.fetchgit {
       url = "https://github.com/Balletie/inxs.git";
-      rev = "c4219d6a55c90996030b8c77c74639c2030d9cfe";
-      sha256 = "0s3m8ilxgimlxqkvx3ly7vkf8y8gjlc2pqp1gh7j2ll5ll1cd4rp";
+      rev = "3425ec324175c91c56d1f7ced49c0e0c50ef02b7";
+      sha256 = "19ndkym3v81va8jypwm5dq97bl7dd3pxpiy6bjs6rh2zrbg7gnns";
     };
 
     patches = [ ./patches/0001-Specify-encoding-when-reading-README-and-HISTORY-fil.patch ];

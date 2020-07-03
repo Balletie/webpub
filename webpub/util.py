@@ -71,7 +71,10 @@ guard_overwrite.verbosity = 2
 def copy_out(epub_zip, filepath, root_dir, routes, stats):
     src_zip_path = os.path.join(root_dir, filepath)
     routed_path = routes[filepath]
-    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
+    dirname = os.path.dirname(routed_path)
+    if dirname == '':
+        dirname = './'
+    os.makedirs(dirname, exist_ok=True)
 
     with epub_zip.open(src_zip_path, 'r') as src:
         with open(routed_path, 'wb') as dst:
@@ -85,7 +88,10 @@ copy_out.verbosity = 1
 
 def write_out(input, filepath, routes, stats):
     routed_path = routes[filepath]
-    os.makedirs(os.path.dirname(routed_path), exist_ok=True)
+    dirname = os.path.dirname(routed_path)
+    if dirname == '':
+        dirname = './'
+    os.makedirs(dirname, exist_ok=True)
 
     with open(routed_path, 'wb') as dst:
         dst.write(input)
