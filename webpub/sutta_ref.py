@@ -195,6 +195,7 @@ class SuttaRefContentHandler(ContentHandler, object):
 
             self.out.characters(before)
             if url:
+                self.context.stats.set_changed()
                 self.out.startElement('a', {
                     'href': url,
                     'class': 'sutta-ref',
