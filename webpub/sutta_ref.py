@@ -92,6 +92,7 @@ sutta_ref_regex = sutta_ref_regex_template.format(
     '|'.join(sutta_abbrev_urls.keys())
 )
 
+ignored_tags = [ "h1", "h2", "h3", "h4", "h5", "h6", "a" ]
 
 def _continue(ui_ctx, *args, **kwargs):
     return None
@@ -164,13 +165,12 @@ class SuttaRefContentHandler(ContentHandler, object):
 
     def characters(self, data):
         # If we're inside a link, don't substitute.
-        if 'a' in self.openElements:
+        if any(tag in self.openElements for tag in ignored_tags):
             self.out.characters(data)
             return
 
         after = data
         offset = 0
-
         matches = re.finditer(sutta_ref_regex, data)
         for matchobj in matches:
             full_match = matchobj.group(0)
@@ -243,7 +243,7 @@ def link_sutta_references(context, root, element):
     element.getparent().replace(element, new_element)
 
 
-sutta_ref_xpath = r'//body//*[not(self::a) and re:test(text(), "{}")]'.format(
+sutta_ref_xpath = r'//body//*'.format(
     sutta_ref_regex
 )
 
