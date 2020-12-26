@@ -46,7 +46,7 @@ def choice_prompt(prompt, apply_all_msg, choices, *args, **kwargs):
         for k, (v, _) in choices.items()
     )
 
-    default = ui_ctx.choice or choice.choices[0]
+    default = choice.choices[0]
     value = default
     if not ui_ctx.apply_to_all:
         value = click.prompt(
