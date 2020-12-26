@@ -53,6 +53,23 @@ def _manual_insert(ui_context, ref, stats):
     return link
 
 
+def _continue(ui_ctx, *args, **kwargs):
+    return None
+
+
+def _insert(ui_ctx, ref, stats):
+    # get_sutta_ref_url checks if True is returned, and returns URL
+    # without checking it.
+    stats.set_changed()
+    return True
+
+
+def _apply_to_all(ui_ctx, *args, **kwargs):
+    ui_ctx.apply_to_all = True
+    prev_action = sutta_ref_choices.get(ui_ctx.choice, ('', _continue))
+    return prev_action[1](ui_ctx, *args, **kwargs)
+
+
 def dhp_reference(context, ref):
     text_num = int(ref.text)
     chapter_num = bisect.bisect_left(dhp_last_text_numbers, text_num) + 1
@@ -74,12 +91,12 @@ sutta_abbrev_urls = {
     'Thig': '/suttas/KN/Thig/thig{subsection}{sep}{text}.html',
     'Ud': '/suttas/KN/Ud/ud{subsection}{sep}{text}.html',
     'Mv': '/vinaya/Mv/Mv{numeral}.html#pts{subsection}{sep}{text}',
-    'Cv': _manual_insert,
-    'Pr': _manual_insert,
-    'Pc': _manual_insert,
-    'NP': _manual_insert,
-    'Sg': _manual_insert,
-    'Sk': _manual_insert,
+    'Cv': _continue,
+    'Pr': _continue,
+    'Pc': _continue,
+    'NP': _continue,
+    'Sg': _continue,
+    'Sk': _continue,
 }
 
 sutta_ref_regex_template = \
@@ -93,23 +110,6 @@ sutta_ref_regex = sutta_ref_regex_template.format(
 )
 
 ignored_tags = [ "h1", "h2", "h3", "h4", "h5", "h6", "a" ]
-
-def _continue(ui_ctx, *args, **kwargs):
-    return None
-
-
-def _insert(ui_ctx, ref, stats):
-    # get_sutta_ref_url checks if True is returned, and returns URL
-    # without checking it.
-    stats.set_changed()
-    return True
-
-
-def _apply_to_all(ui_ctx, *args, **kwargs):
-    ui_ctx.apply_to_all = True
-    prev_action = sutta_ref_choices.get(ui_ctx.choice, ('', _continue))
-    return prev_action[1](ui_ctx, *args, **kwargs)
-
 
 sutta_ref_choices = {
     'cont': ('continue without inserting a link', _continue),
