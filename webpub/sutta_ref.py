@@ -5,6 +5,8 @@ import re
 
 import html5_parser as html5
 import lxml.sax
+from lxml.builder import E
+import lxml.etree
 from xml.sax import ContentHandler
 from inxs import Transformation, Rule, MatchesXPath
 import requests
@@ -16,7 +18,7 @@ from webpub.util import (
 )
 from webpub.ui import echo, choice_prompt
 
-
+# List to determine chapter numbers from Dhp references.
 dhp_last_text_numbers = [
     20,
     32,
@@ -101,7 +103,8 @@ sutta_ref_regex = sutta_ref_regex_template.format(
     '|'.join(sutta_abbrev_urls.keys())
 )
 
-ignored_tags = [ "h1", "h2", "h3", "h4", "h5", "h6", "a" ]
+ignored_elements = [ 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                     lxml.etree.Comment, lxml.etree.ProcessingInstruction ]
 
 sutta_ref_choices = {
     'cont': ('continue without inserting a link', _continue),
@@ -115,152 +118,128 @@ SuttaRef = namedtuple(
 )
 
 
-class SuttaRefContentHandler(ContentHandler, object):
-    def __init__(self, context, *args, **kwargs):
-        self.out = lxml.sax.ElementTreeContentHandler()
-        self.context = context
-        self.openElements = []
-        super().__init__(*args, **kwargs)
-
-    def get_url_format_callable(self, ref):
-        url_format = sutta_abbrev_urls.get(ref.section)
-        if callable(url_format):
-            return ft.partial(url_format, self.context, ref)
-        return ft.partial(
-            url_format.format, subsection=ref.subsection,
-            numeral=ref.numeral, text=ref.text, sep=ref.sep
-        )
-
-    def get_sutta_ref_url(self, ref):
-        url_format = self.get_url_format_callable(ref)
-        url = url_format()
-        message = "Sutta link not found"
-        while url is not None:
-            try:
-                working, link = check_link_against_fallback(
-                    url, self.context.session, self.context.fallback_url
-                )
-            except ValueError:
-                return url
-
-            if working:
-                return url
-
-            echo("{}: {}".format(message, link))
-            choice = choice_prompt(
-                'What should I do?', 'Sutta not found, ',
-                sutta_ref_choices, ref, self.context.stats
-            )
-            if choice is True:
-                return url
-            url = choice
-
-    def characters(self, data):
-        # If we're inside a link, don't substitute.
-        if any(tag in self.openElements for tag in ignored_tags):
-            self.out.characters(data)
-            return
-
-        after = data
-        offset = 0
-        matches = re.finditer(sutta_ref_regex, data)
-        for matchobj in matches:
-            full_match = matchobj.group(0)
-            numeral = matchobj.group('numeral')
-            section = matchobj.group('section')
-            text = matchobj.group('text') \
-                or matchobj.group('text_or_subsection')
-            subsection = sep = ''
-
-            if matchobj.group('text'):
-                subsection = matchobj.group('text_or_subsection')
-                sep = '_'
-            ref = SuttaRef(full_match, section, subsection, numeral, text, sep)
-
-            start = matchobj.start() - offset
-            end = matchobj.end() - offset
-
-            before = after[:start]
-            after = after[end:]
-
-            url = self.get_sutta_ref_url(ref)
-
-            self.out.characters(before)
-            if url:
-                self.context.stats.set_changed()
-                self.out.startElement('a', {
-                    'href': url,
-                    'class': 'sutta-ref',
-                })
-            self.out.characters(full_match)
-            if url:
-                self.out.endElement('a')
-
-            offset += end
-        self.out.characters(after)
-
-    def startDocument(self, *args):
-        self.out.startDocument(*args)
-
-    def endDocument(self, *args):
-        self.out.endDocument(*args)
-
-    def startElement(self, *args):
-        self.openElements.append(args[0])
-        self.out.startElement(*args)
-
-    def endElement(self, *args):
-        assert self.openElements.pop() == args[0]
-        self.out.endElement(*args)
-
-    def startElementNS(self, *args):
-        self.openElements.append(args[0][1])
-        self.out.startElementNS(*args)
-
-    def endElementNS(self, *args):
-        assert self.openElements.pop() == args[0][1]
-        self.out.endElementNS(*args)
-
-    def getOutput(self):
-        return self.out.etree.getroot()
-
-
-def link_sutta_references(context, root, element):
-    handler = SuttaRefContentHandler(context)
-    tail = element.tail
-    element.tail = None
-    lxml.sax.saxify(element, handler)
-    new_element = handler.getOutput()
-    new_element.tail = tail
-    element.getparent().replace(element, new_element)
-
-
-sutta_ref_xpath = r'//body//*'.format(
-    sutta_ref_regex
-)
-
-
-def add_re_namespace(xpath_evaluator):
-    xpath_evaluator.register_namespace(
-        're', 'http://exslt.org/regular-expressions'
+def get_url_format_callable(ref):
+    url_format = sutta_abbrev_urls.get(ref.section)
+    if callable(url_format):
+        return ft.partial(url_format, ref)
+    return ft.partial(
+        url_format.format, subsection=ref.subsection,
+        numeral=ref.numeral, text=ref.text, sep=ref.sep
     )
+
+def get_sutta_ref_url(ref, stats, session, fallback_url):
+    url_format = get_url_format_callable(ref)
+    url = url_format()
+    message = "Sutta link not found"
+    while url is not None:
+        try:
+            working, link = check_link_against_fallback(
+                url, session, fallback_url
+            )
+        except ValueError:
+            return url
+
+        if working:
+            return url
+
+        echo("{}: {}".format(message, link))
+        choice = choice_prompt(
+            'What should I do?', 'Sutta not found, ',
+            sutta_ref_choices, ref, stats
+        )
+        if choice is True:
+            return url
+        url = choice
+
+
+def find_sutta_refs(text):
+    """Returns pairs of references and the "tail text" between the end of
+    the current reference and the next reference. Starts with a
+    sentinel (i.e. `None`) with the text preceding the first
+    reference. If no references are found, this function returns
+    `(None, text)`.
+
+    """
+    tail_text = text
+    latest_ref = None
+    matches = re.finditer(sutta_ref_regex, text)
+    offset = 0
+
+    for matchobj in matches:
+        full_match = matchobj.group(0)
+        numeral = matchobj.group('numeral')
+        section = matchobj.group('section')
+        text = matchobj.group('text') \
+            or matchobj.group('text_or_subsection')
+        subsection = sep = ''
+
+        start = matchobj.start() - offset
+        end = matchobj.end() - offset
+
+        preceding_text = tail_text[:start]
+
+        yield latest_ref, preceding_text
+
+        tail_text = tail_text[end:]
+
+        if matchobj.group('text'):
+            subsection = matchobj.group('text_or_subsection')
+            sep = '_'
+
+        latest_ref = SuttaRef(full_match, section, subsection, numeral, text, sep)
+
+        offset += end
+    yield latest_ref, tail_text
+
+
+def crossref_text(text, stats, session, fallback_url):
+    preceding_text = text
+
+    ref_finder = find_sutta_refs(text)
+
+    # Get sentinel with the text leading up to first crossref
+    _, preceding_text = next(ref_finder)
+    last_element = None
+    ref_elements = []
+
+    for ref, tail_text in ref_finder:
+        url = get_sutta_ref_url(ref, stats, session, fallback_url)
+        if url:
+            stats.set_changed()
+            last_element = E("a", ref.full_match, {'href': url, 'class': 'sutta-ref'})
+            last_element.tail = ''
+            ref_elements.append(last_element)
+        else:
+            last_element.tail += ref.full_match
+        last_element.tail += tail_text
+
+    return (preceding_text, ref_elements)
+
+
+def crossref_element(element, stats, session, fallback_url):
+    if element.text is not None:
+        element.text, new_child_elements = crossref_text(element.text, stats, session, fallback_url)
+        element.extend(new_child_elements)
+
+    if element.tail is not None:
+        new_tail, new_sibling_elements = crossref_text(element.tail, stats, session, fallback_url)
+        # Temporarily set tail to None before adding siblings.
+        element.tail = None
+        for sibling in new_sibling_elements:
+            element.addnext(sibling)
+        element.tail = new_tail
 
 
 def crossref_document(routes, filepath, currentpath, stats, fallback_url):
-    context = locals().copy()
-    context.pop('stats', None)
-
-    transformation = Transformation(
-        add_re_namespace,
-        Rule(MatchesXPath(sutta_ref_xpath), link_sutta_references),
-        context=context,
-    )
-
     with open(currentpath, mode='rb') as doc:
         doc_tree = html5.parse(doc.read(), fallback_encoding='utf-8')
 
     with requests.Session() as s:
-        return transformation(doc_tree, session=s, stats=stats)
+        for element in doc_tree.find('body').iter():
+            if element.tag in ignored_elements:
+                continue
+            crossref_element(element, stats, s, fallback_url)
+        return doc_tree
 
 
 crossref_mime_handlers = {
