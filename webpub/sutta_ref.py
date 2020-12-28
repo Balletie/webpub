@@ -95,8 +95,9 @@ sutta_abbrev_urls = {
 
 sutta_ref_regex_template = \
     r"(?P<section>{})\s?"\
-    r"(?P<numeral>[IXV]+)?[.:]?"\
-    r"(?P<text_or_subsection>[0-9]+)[.:]?(?P<text>[0-9]+)?"\
+    r"((?P<numeral>[IXV]+)[.:])?"\
+    r"(?P<text_or_subsection>[0-9]+)"\
+    r"([.:](?P<text>[0-9]+))?"\
     r"(?:[-–](?P<text_end>[0-9]+))?"  # Includes ranges of texts
 
 sutta_ref_regex = sutta_ref_regex_template.format(
