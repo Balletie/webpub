@@ -263,7 +263,7 @@ def crossref_document(routes, filepath, currentpath, stats, fallback_url):
         return transformation(doc_tree, session=s, stats=stats)
 
 
-linkfix_mime_handlers = {
+crossref_mime_handlers = {
     'text/html': (crossref_document, guard_unchanged, guard_dry_run,
                   guard_overwrite, tostring, write_out),
     'application/xhtml+xml': 'text/html',
@@ -273,7 +273,7 @@ linkfix_mime_handlers = {
 
 class CrossRefRoute(ConstDestMimetypeRoute):
     def get_mime_to_handlers(self):
-        return linkfix_mime_handlers
+        return crossref_mime_handlers
 
 
 def cross_ref_routes(filenames):
