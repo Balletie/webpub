@@ -211,6 +211,11 @@ def crossref_text(text, stats, session, fallback_url):
             last_element.tail = ''
             ref_elements.append(last_element)
         else:
+            if last_element is None:
+                # If no url is found for the first found reference, last_element is None.
+                # Therefore, just add it to the preceding text.
+                preceding_text += ref.full_match + tail_text
+                continue
             last_element.tail += ref.full_match
         last_element.tail += tail_text
 
