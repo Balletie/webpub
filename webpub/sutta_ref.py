@@ -241,8 +241,10 @@ def crossref_document(routes, filepath, currentpath, stats, fallback_url):
         doc_tree = html5.parse(doc.read(), fallback_encoding='utf-8')
 
     with requests.Session() as s:
-        for element in doc_tree.find('body').iter():
+        iterator = lxml.etree.iterwalk(doc_tree.find('body'), events=('start',))
+        for (event, element) in iterator:
             if element.tag in ignored_elements:
+                iterator.skip_subtree()
                 continue
             crossref_element(element, stats, s, fallback_url)
         return doc_tree
