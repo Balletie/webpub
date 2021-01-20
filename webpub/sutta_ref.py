@@ -225,16 +225,18 @@ def crossref_text(text, stats, session, fallback_url):
 def crossref_element(element, stats, session, fallback_url):
     if element.text is not None:
         element.text, new_child_elements = crossref_text(element.text, stats, session, fallback_url)
-        element.extend(new_child_elements)
+        # Prepend elements to existing children.
+        element[:0] = new_child_elements
 
     if element.tail is not None:
         new_tail, new_sibling_elements = crossref_text(element.tail, stats, session, fallback_url)
         # Temporarily set tail to None before adding siblings.
         element.tail = None
-        for sibling in new_sibling_elements:
-            element.addnext(sibling)
-        element.tail = new_tail
 
+        for sibling in reversed(new_sibling_elements):
+            element.addnext(sibling)
+
+        element.tail = new_tail
 
 def crossref_document(routes, filepath, currentpath, stats, fallback_url):
     with open(currentpath, mode='rb') as doc:
