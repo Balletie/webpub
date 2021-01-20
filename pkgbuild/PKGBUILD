@@ -5,8 +5,6 @@
 _repo_url="https://github.com/Balletie/webpub"
 _sphinx_ext_repo_url="https://github.com/Balletie/sphinx-click"
 pkgname=webpub
-pkgver=1.0
-pkgrel=1
 pkgdesc=""
 arch=('x86_64')
 url="$_repo_url"
@@ -39,6 +37,11 @@ source=("git+$_repo_url"
         "git+$_sphinx_ext_repo_url")
 md5sums=('SKIP'
          'SKIP')
+
+pkgver() {
+  cd ${srcdir}/${pkgname}
+  git describe --long | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+}
 
 prepare() {
   cd "$srcdir/webpub"
