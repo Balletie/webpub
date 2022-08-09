@@ -1,18 +1,18 @@
 import os.path
 import functools as ft
 
-import cssutils
+import css_parser
 
 from .route import routed_url
 
-cssutils.ser.prefs.keepUsedNamespaceRulesOnly = True
-cssutils.ser.prefs.indentClosingBrace = False
-cssutils.ser.prefs.omitLastSemicolon = False
+css_parser.ser.prefs.keepUsedNamespaceRulesOnly = True
+css_parser.ser.prefs.indentClosingBrace = False
+css_parser.ser.prefs.omitLastSemicolon = False
 
 
 def replace_urls(routes, filepath):
-    stylesheet = cssutils.parseFile(filepath)
-    cssutils.replaceUrls(
+    stylesheet = css_parser.parseFile(filepath)
+    css_parser.replaceUrls(
         stylesheet,
         ft.partial(routed_url, filepath, routes)
     )
@@ -21,8 +21,8 @@ def replace_urls(routes, filepath):
 
 def replace_urls_epub(epub_zip, routes, root_dir, filepath):
     style_string = epub_zip.read(os.path.join(root_dir, filepath))
-    stylesheet = cssutils.parseString(style_string)
-    cssutils.replaceUrls(
+    stylesheet = css_parser.parseString(style_string)
+    css_parser.replaceUrls(
         stylesheet,
         ft.partial(routed_url, filepath, routes)
     )

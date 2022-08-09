@@ -22,8 +22,9 @@ setup(
         'inxs',
         'click',
         'jinja2',
-        'cssutils',
+        'css-parser',
         'dependency-injection',
         'python-mimeparse',
+        'requests',
     ],
 )
