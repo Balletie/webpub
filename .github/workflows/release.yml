@@ -1,0 +1,35 @@
+name: Release
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      - name: Update Git
+        run: |
+          cd pkgbuild
+          sed -i "s|https://github.com/Balletie/webpub|git+$(git remote get-url origin)#commit=${GITHUB_SHA}|g" PKGBUILD
+          sed -i "s/@PROJECT_VERSION@/$(git describe --long --tags --abbrev=8 | sed 's/\([^-]*-g\)/r\1/;s/-/./g')/g" PKGBUILD
+          cat PKGBUILD
+      
+      - name: Build Package
+        uses: ouuan/pkgbuild-action@master
+        id: build-package
+        with:
+          path: pkgbuild/
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ steps.build-package.outputs.pkgfile }}
