@@ -14,13 +14,6 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
-
-      - name: Update Git
-        run: |
-          cd pkgbuild
-          sed -i "s|https://github.com/Balletie/webpub|git+$(git remote get-url origin)#commit=${GITHUB_SHA}|g" PKGBUILD
-          sed -i "s/@PROJECT_VERSION@/$(git describe --long --tags --abbrev=8 | sed 's/\([^-]*-g\)/r\1/;s/-/./g')/g" PKGBUILD
-          cat PKGBUILD
       
       - name: Build Package
         uses: ouuan/pkgbuild-action@master
