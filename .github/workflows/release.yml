@@ -12,8 +12,10 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      # Sets fetch-depth to 50, max depth for fetching tag before I should create a new one
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 50
       
       - name: Build Package
         uses: ouuan/pkgbuild-action@master
