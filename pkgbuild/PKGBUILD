@@ -6,7 +6,7 @@ _repo_url="https://github.com/Balletie/webpub"
 _sphinx_ext_repo_url="https://github.com/Balletie/sphinx-click"
 pkgname=webpub
 pkgdesc=""
-pkgver=1.0.4.r1.geb0312c
+pkgver=1.0.4
 pkgrel=1
 arch=('x86_64')
 url="$_repo_url"
@@ -28,7 +28,7 @@ depends=( 'python'
           'python-markupsafe'
           'python-mimeparse'
           )
-makedepends=('python-pip' 'python-wheel' 'python-sphinx' 'python-click')
+makedepends=('git' 'python-pip' 'python-wheel' 'python-sphinx' 'python-click')
 provides=()
 conflicts=()
 replaces=()
