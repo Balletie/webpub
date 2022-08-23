@@ -21,7 +21,12 @@ jobs:
         with:
           path: pkgbuild/
 
-      - name: Release
+      - name: Set pre-release tag
+        run: git describe --long | sed 's/^/vcs_version=/;s/\([^-]*-g\)/r\1/' >> $GITHUB_ENV
+
+      - name: Pre-release
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ steps.build-package.outputs.pkgfile }}
+          tag_name: ${{ env.vcs_version }}
+          prerelease: true
