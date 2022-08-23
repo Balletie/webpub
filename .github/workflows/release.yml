@@ -12,10 +12,10 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Sets fetch-depth to 50, max depth for fetching tag before I should create a new one
+      # Sets fetch-depth to 0 to fetch tags as well.
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 50
+          fetch-depth: 0
       
       - name: Build Package
         uses: ouuan/pkgbuild-action@master
