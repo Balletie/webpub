@@ -49,7 +49,7 @@ prepare() {
   cd "$srcdir/webpub"
   git submodule init
   git config submodule.sphinx-click.url $srcdir/sphinx-click
-  git submodule update
+  git -c protocol.file.allow=always submodule update
 }
 
 build() {
