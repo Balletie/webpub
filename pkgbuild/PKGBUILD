@@ -59,6 +59,7 @@ build() {
 
 package() {
   cd "$srcdir/webpub"
+  python3 -m ensurepip
   PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps dependency-injection git+https://github.com/Balletie/inxs.git
 
   python setup.py bdist_wheel
