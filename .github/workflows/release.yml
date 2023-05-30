@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
       
       - name: Build Package
-        uses: ouuan/pkgbuild-action@v1.1.3
+        uses: ouuan/pkgbuild-action@v1.2.0
         id: build-package
         with:
           path: pkgbuild/
