@@ -6,13 +6,14 @@ _repo_url="https://github.com/Balletie/webpub"
 _sphinx_ext_repo_url="https://github.com/Balletie/sphinx-click"
 pkgname=webpub
 pkgdesc=""
-pkgver=1.0.4
+pkgver=1.0.4.r16.g9036fe2
 pkgrel=1
 arch=('x86_64')
 url="$_repo_url"
 license=('unknown')
 groups=()
 depends=( 'python'
+          'python-pip'
           'python-lxml'
           'python-html5-parser'
           'python-webencodings'
@@ -28,7 +29,7 @@ depends=( 'python'
           'python-markupsafe'
           'python-mimeparse'
           )
-makedepends=('git' 'python-pip' 'python-wheel' 'python-sphinx' 'python-click')
+makedepends=('git' 'python-pip' 'python-wheel' 'python-sphinx' 'python-click' 'python-setuptools')
 provides=()
 conflicts=()
 replaces=()
@@ -47,25 +48,34 @@ pkgver() {
 
 prepare() {
   cd "$srcdir/webpub"
+  python -m venv --system-site-packages .venv
+  source .venv/bin/activate
+  pip install dependency-injection git+https://github.com/Balletie/inxs.git
+  cp /usr/bin/sphinx-build .venv/bin
+  sed -i 's#/usr/bin/#/usr/bin/env #' .venv/bin/sphinx-build
+
   git submodule init
   git config submodule.sphinx-click.url $srcdir/sphinx-click
   git -c protocol.file.allow=always submodule update
+  deactivate
 }
 
 build() {
-  cd ${srcdir}/${pkgname}/docs
+  cd "${srcdir}/${pkgname}/docs"
+  source "${srcdir}/webpub/.venv/bin/activate"
+  which sphinx-build
   make man
+  deactivate
 }
 
 package() {
   cd "$srcdir/webpub"
-  python3 -m ensurepip
-  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir" --ignore-installed --no-deps dependency-injection git+https://github.com/Balletie/inxs.git
+  PIP_CONFIG_FILE=/dev/null /usr/bin/pip install --root="$pkgdir" --ignore-installed --no-deps dependency-injection git+https://github.com/Balletie/inxs.git
 
-  python setup.py bdist_wheel
+  /usr/bin/python setup.py bdist_wheel
 
   pushd dist
-  PIP_CONFIG_FILE=/dev/null pip install --isolated --root="$pkgdir/" --ignore-installed --no-deps *.whl 
+  PIP_CONFIG_FILE=/dev/null /usr/bin/pip install --root="$pkgdir/" --ignore-installed --no-deps *.whl 
   popd
 
   rm "${pkgdir}/usr/bin/inxs"
